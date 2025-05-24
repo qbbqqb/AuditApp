@@ -470,8 +470,8 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
-    COUNT(*) as total_findings,
+SELECT 
+  COUNT(*) as total_findings,
     COUNT(*) FILTER (WHERE f.status != 'closed') as open_findings,
     COUNT(*) FILTER (WHERE f.status = 'overdue' OR (f.due_date < CURRENT_TIMESTAMP AND f.status != 'closed')) as overdue_findings,
     COUNT(*) FILTER (WHERE f.severity = 'critical') as critical_findings,
