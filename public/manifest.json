@@ -1,0 +1,94 @@
+{
+  "short_name": "Safety Audit",
+  "name": "Health & Safety Audit Tracker",
+  "description": "Comprehensive safety audit management system for construction projects",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#2563eb",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["business", "productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "screenshot-mobile.png",
+      "type": "image/png",
+      "sizes": "390x844",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "screenshot-desktop.png", 
+      "type": "image/png",
+      "sizes": "1920x1080",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Create Finding",
+      "short_name": "New Finding",
+      "description": "Quickly report a new safety issue",
+      "url": "/findings/new",
+      "icons": [
+        {
+          "src": "icon-add.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "My Dashboard",
+      "short_name": "Dashboard", 
+      "description": "View your safety dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "icon-dashboard.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Upload Evidence",
+      "short_name": "Evidence",
+      "description": "Upload photos and documents",
+      "url": "/findings?status=in_progress",
+      "icons": [
+        {
+          "src": "icon-camera.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
+} 
