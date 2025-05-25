@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../config/supabase';
-import { FindingsService } from '../../services/findingsService';
-import type { Finding, FindingSeverity, FindingCategory } from '../../types/findings';
+import { FindingsService, CreateFindingServicePayload } from '../../services/findingsService';
+import type { FindingSeverity, FindingCategory } from '../../types/findings';
 
 interface Project {
   id: string;
@@ -92,8 +92,7 @@ const CreateFinding: React.FC = () => {
     setError('');
 
     try {
-      // Format due date if provided
-      const submissionData: Partial<Finding> = {
+      const submissionData: CreateFindingServicePayload = {
         title: formData.title,
         description: formData.description,
         location: formData.location,

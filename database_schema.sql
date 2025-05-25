@@ -222,7 +222,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION user_has_finding_access(finding_id UUID, user_id UUID)
 RETURNS BOOLEAN AS $$
 DECLARE
-  user_role user_role;
+  user_profile_role user_role;
   user_company VARCHAR(255);
   finding_project_id UUID;
   client_company VARCHAR(255);
@@ -231,8 +231,13 @@ DECLARE
   is_creator BOOLEAN;
 BEGIN
   -- Get user role and company
-  SELECT role, company INTO user_role, user_company
+  SELECT role, company INTO user_profile_role, user_company
   FROM profiles WHERE id = user_id;
+
+  -- Admins have access to all findings
+  IF user_profile_role = 'admin' THEN
+    RETURN TRUE;
+  END IF;
   
   -- Get finding details
   SELECT 
@@ -245,18 +250,23 @@ BEGIN
   FROM findings f
   JOIN projects p ON f.project_id = p.id
   WHERE f.id = finding_id;
+
+  -- If finding not found, or project not found, deny access
+  IF NOT FOUND THEN
+    RETURN FALSE;
+  END IF;
   
   -- Check access based on role and relationships
-  CASE user_role
+  CASE user_profile_role
     WHEN 'client_safety_manager', 'client_project_manager' THEN
-      RETURN user_company = client_company;
+      RETURN user_company = client_company AND EXISTS (SELECT 1 FROM project_assignments pa WHERE pa.project_id = finding_project_id AND pa.user_id = user_id);
     WHEN 'gc_ehs_officer', 'gc_project_manager', 'gc_site_director' THEN
-      RETURN user_company = contractor_company OR is_assigned OR is_creator;
+      RETURN (user_company = contractor_company AND EXISTS (SELECT 1 FROM project_assignments pa WHERE pa.project_id = finding_project_id AND pa.user_id = user_id)) OR is_assigned OR is_creator;
     ELSE
       RETURN FALSE;
   END CASE;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 -- Dashboard statistics view
 CREATE OR REPLACE VIEW dashboard_stats AS
@@ -428,10 +438,57 @@ CREATE POLICY "Users can read relevant audit logs" ON audit_logs
   FOR SELECT USING (
     CASE table_name
       WHEN 'findings' THEN user_has_finding_access(record_id, auth.uid())
-      WHEN 'profiles' THEN record_id = auth.uid()
-      ELSE false
+      WHEN 'profiles' THEN record_id = auth.uid() OR (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin' -- Admins can see all profile audit logs
+      WHEN 'projects' THEN (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin' OR EXISTS(SELECT 1 FROM project_assignments pa WHERE pa.project_id = audit_logs.record_id AND pa.user_id = auth.uid()) -- Admins or assigned users
+      ELSE false -- Default deny for other tables unless specified
     END
   );
+
+-- Admin RLS Policies (GRANT FULL ACCESS TO ADMINS)
+-- These policies should typically be placed before more restrictive ones or ensure they are correctly ordered by Supabase.
+
+-- profiles table admin access
+CREATE POLICY "Admins have full access to profiles" ON profiles
+  FOR ALL -- Covers SELECT, INSERT, UPDATE, DELETE
+  USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin')
+  WITH CHECK ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin');
+
+-- projects table admin access
+CREATE POLICY "Admins have full access to projects" ON projects
+  FOR ALL
+  USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin')
+  WITH CHECK ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin');
+
+-- project_assignments table admin access
+CREATE POLICY "Admins have full access to project_assignments" ON project_assignments
+  FOR ALL
+  USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin')
+  WITH CHECK ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin');
+
+-- findings table admin SELECT access (other operations for admins can be part of existing specific policies or new ones)
+-- This ensures admins can at least VIEW all findings. INSERT/UPDATE/DELETE might be better handled
+-- by modifying existing policies to include an OR admin_check, or by adding specific admin policies for those operations.
+CREATE POLICY "Admins can read all findings" ON findings
+  FOR SELECT
+  USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin');
+
+-- For INSERT on findings, the existing policy "Client Safety Managers can create findings" needs to be augmented, 
+-- or a new admin policy added.
+CREATE POLICY "Admins can create findings in any project" ON findings
+  FOR INSERT 
+  WITH CHECK ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin');
+
+-- For UPDATE on findings, the existing policy "Users can update assigned findings" might be sufficient if `user_has_finding_access` is used in its USING clause,
+-- and if its WITH CHECK clause is also satisfied or bypassed for admins. Let's make it explicit.
+CREATE POLICY "Admins can update any finding" ON findings
+  FOR UPDATE
+  USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin')
+  WITH CHECK ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin');
+
+-- For DELETE on findings, we need an admin policy.
+CREATE POLICY "Admins can delete any finding" ON findings
+  FOR DELETE
+  USING ((SELECT role FROM profiles WHERE id = auth.uid()) = 'admin');
 
 -- =============================================================================
 -- HELPER FUNCTIONS FOR FRONTEND

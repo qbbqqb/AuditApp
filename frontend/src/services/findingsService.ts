@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import type { Finding, FindingStatus, FindingSeverity, FindingCategory, Evidence } from '../types/findings';
+import type { Finding, FindingStatus, FindingSeverity, FindingCategory } from '../types/findings';
 
 export interface FindingsFilters {
   status?: FindingStatus;
@@ -23,8 +23,35 @@ export interface FindingsResponse {
   totalPages: number;
 }
 
+export type CreateFindingServicePayload = Omit<Finding, 'id' | 'created_at' | 'updated_at' | 'closed_at' | 'status' | 'created_by' | 'created_by_profile' | 'assigned_to_profile' | 'project' | 'comments' | 'evidence'> & { status?: Finding['status'] };
+export type UpdateFindingServicePayload = Partial<Omit<Finding, 'id' | 'created_by' | 'project_id' | 'created_at' | 'updated_at' | 'created_by_profile' | 'assigned_to_profile' | 'project' | 'comments' | 'evidence'> >;
+
 export class FindingsService {
   
+  private static baseSelectQueryWithRelations = `
+    id, title, description, location, severity, status, category, created_by, assigned_to, project_id, due_date, created_at, updated_at, closed_at, regulatory_reference, immediate_action_required,
+    created_by_profile:profiles!findings_created_by_fkey(
+      id,
+      first_name,
+      last_name,
+      role,
+      company
+    ),
+    assigned_to_profile:profiles!findings_assigned_to_fkey(
+      id,
+      first_name,
+      last_name,
+      role,
+      company
+    ),
+    project:projects!inner(
+      id,
+      name,
+      client_company,
+      contractor_company
+    )
+  `;
+
   /**
    * Get findings with filters and pagination
    */
@@ -38,25 +65,7 @@ export class FindingsService {
 
     let query = supabase
       .from('findings')
-      .select(`
-        *,
-        created_by_profile:profiles!findings_created_by_fkey(
-          first_name,
-          last_name,
-          role
-        ),
-        assigned_to_profile:profiles!findings_assigned_to_fkey(
-          first_name,
-          last_name,
-          role
-        ),
-        project:projects(
-          id,
-          name,
-          client_company,
-          contractor_company
-        )
-      `, { count: 'exact' })
+      .select(this.baseSelectQueryWithRelations, { count: 'exact' })
       .range(from, to)
       .order('created_at', { ascending: false });
 
@@ -88,11 +97,41 @@ export class FindingsService {
     const { data, error, count } = await query;
 
     if (error) {
+      console.error('Error fetching findings:', error);
       throw new Error(`Failed to fetch findings: ${error.message}`);
     }
 
     return {
-      data: data || [],
+      data: (data as unknown as Finding[]) || [],
+      count: count || 0,
+      page,
+      limit,
+      totalPages: Math.ceil((count || 0) / limit)
+    };
+  }
+
+  /**
+   * Fetches all findings across all projects. (Admin only)
+   * RLS policies should restrict this to admin users.
+   */
+  static async getAllFindings_admin(pagination: PaginationOptions = {}): Promise<FindingsResponse> {
+    const { page = 1, limit = 100 } = pagination;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await supabase
+      .from('findings')
+      .select(this.baseSelectQueryWithRelations, { count: 'exact' })
+      .range(from, to)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching all findings (admin):', error);
+      throw new Error(`Failed to fetch all findings (admin): ${error.message}`);
+    }
+    
+    return {
+      data: (data as unknown as Finding[]) || [],
       count: count || 0,
       page,
       limit,
@@ -103,153 +142,108 @@ export class FindingsService {
   /**
    * Get a single finding by ID with all related data
    */
-  static async getFinding(id: string): Promise<Finding> {
+  static async getFinding(id: string): Promise<Finding | null> {
+    const selectQueryWithCommentsAndEvidence = `
+      ${this.baseSelectQueryWithRelations},
+      comments(
+        id,
+        content,
+        created_at,
+        is_internal,
+        user:profiles!comments_user_id_fkey(
+          id,
+          first_name,
+          last_name,
+          role
+        )
+      ),
+      evidence(
+        id,
+        file_name,
+        file_type,
+        file_size,
+        description,
+        created_at,
+        is_corrective_action,
+        uploaded_by_profile:profiles!evidence_uploaded_by_fkey(
+          id,
+          first_name,
+          last_name,
+          role
+        )
+      )
+    `;
     const { data, error } = await supabase
       .from('findings')
-      .select(`
-        *,
-        created_by_profile:profiles!findings_created_by_fkey(
-          first_name,
-          last_name,
-          role,
-          company
-        ),
-        assigned_to_profile:profiles!findings_assigned_to_fkey(
-          first_name,
-          last_name,
-          role,
-          company
-        ),
-        project:projects(
-          id,
-          name,
-          client_company,
-          contractor_company
-        ),
-        comments(
-          id,
-          content,
-          created_at,
-          is_internal,
-          user:profiles(
-            first_name,
-            last_name,
-            role
-          )
-        ),
-        evidence(
-          id,
-          file_name,
-          file_type,
-          file_size,
-          description,
-          created_at,
-          is_corrective_action,
-          uploaded_by_profile:profiles!evidence_uploaded_by_fkey(
-            first_name,
-            last_name,
-            role
-          )
-        )
-      `)
+      .select(selectQueryWithCommentsAndEvidence)
       .eq('id', id)
-      .single();
+      .single<Finding>();
 
     if (error) {
+      if (error.code === 'PGRST116') return null;
+      console.error('Error fetching finding by ID:', error);
       throw new Error(`Failed to fetch finding: ${error.message}`);
     }
 
     if (!data) {
-      throw new Error('Finding not found');
+      return null;
     }
 
-    // Add computed properties
-    const finding = data as Finding;
-    
-    // Add is_photo property to evidence
+    const finding = data;
     if (finding.evidence) {
-      finding.evidence = finding.evidence.map((e: Evidence) => ({
+      finding.evidence = finding.evidence.map((e: any) => ({
         ...e,
-        is_photo: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(e.file_type)
+        is_photo: e.file_type && ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(e.file_type)
       }));
     }
-
     return finding;
   }
 
   /**
    * Create a new finding
    */
-  static async createFinding(findingData: Partial<Finding>): Promise<Finding> {
-    const { data, error } = await supabase
-      .from('findings')
-      .insert({
-        ...findingData,
-        created_by: (await supabase.auth.getUser()).data.user?.id
-      })
-      .select(`
-        *,
-        created_by_profile:profiles!findings_created_by_fkey(
-          first_name,
-          last_name,
-          role
-        ),
-        project:projects(
-          id,
-          name,
-          client_company,
-          contractor_company
-        )
-      `)
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to create finding: ${error.message}`);
+  static async createFinding(findingData: CreateFindingServicePayload): Promise<Finding> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated. Cannot create finding.');
     }
 
+    const payload = {
+      ...findingData,
+      created_by: user.id,
+      status: findingData.status || 'open'
+    };
+
+    const { data, error } = await supabase
+      .from('findings')
+      .insert(payload)
+      .select(this.baseSelectQueryWithRelations)
+      .single<Finding>();
+
+    if (error) {
+      console.error('Error creating finding:', error);
+      throw new Error(`Failed to create finding: ${error.message}`);
+    }
+    if (!data) throw new Error('Failed to create finding, no data returned.');
     return data;
   }
 
   /**
    * Update a finding
    */
-  static async updateFinding(id: string, updates: Partial<Finding>): Promise<Finding> {
-    const updateData = { ...updates };
-    
-    // Set closed_at when status changes to closed
-    if (updates.status === 'closed' && !updates.closed_at) {
-      updateData.closed_at = new Date().toISOString();
-    }
-
+  static async updateFinding(id: string, updates: UpdateFindingServicePayload): Promise<Finding> {
     const { data, error } = await supabase
       .from('findings')
-      .update(updateData)
+      .update(updates)
       .eq('id', id)
-      .select(`
-        *,
-        created_by_profile:profiles!findings_created_by_fkey(
-          first_name,
-          last_name,
-          role
-        ),
-        assigned_to_profile:profiles!findings_assigned_to_fkey(
-          first_name,
-          last_name,
-          role
-        ),
-        project:projects(
-          id,
-          name,
-          client_company,
-          contractor_company
-        )
-      `)
-      .single();
+      .select(this.baseSelectQueryWithRelations)
+      .single<Finding>();
 
     if (error) {
+      console.error('Error updating finding:', error);
       throw new Error(`Failed to update finding: ${error.message}`);
     }
-
+    if (!data) throw new Error('Failed to update finding, no data returned.');
     return data;
   }
 
@@ -263,6 +257,7 @@ export class FindingsService {
       .eq('id', id);
 
     if (error) {
+      console.error('Error deleting finding:', error);
       throw new Error(`Failed to delete finding: ${error.message}`);
     }
   }
@@ -274,19 +269,28 @@ export class FindingsService {
     findingId: string, 
     content: string, 
     isInternal: boolean = false
-  ): Promise<void> {
-    const { error } = await supabase
+  ): Promise<any> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated. Cannot add comment.');
+    }
+
+    const { data, error } = await supabase
       .from('comments')
       .insert({
         finding_id: findingId,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
         content,
-        is_internal: isInternal
-      });
-
+        is_internal: isInternal,
+        user_id: user.id
+      })
+      .select('*, user:profiles!comments_user_id_fkey(id, first_name, last_name, role)')
+      .single();
+    
     if (error) {
+      console.error('Error adding comment:', error);
       throw new Error(`Failed to add comment: ${error.message}`);
     }
+    return data;
   }
 
   /**
@@ -295,33 +299,15 @@ export class FindingsService {
   static async getOverdueFindings(): Promise<Finding[]> {
     const { data, error } = await supabase
       .from('findings')
-      .select(`
-        *,
-        created_by_profile:profiles!findings_created_by_fkey(
-          first_name,
-          last_name,
-          role
-        ),
-        assigned_to_profile:profiles!findings_assigned_to_fkey(
-          first_name,
-          last_name,
-          role
-        ),
-        project:projects(
-          name,
-          client_company,
-          contractor_company
-        )
-      `)
+      .select(this.baseSelectQueryWithRelations)
       .lt('due_date', new Date().toISOString())
-      .neq('status', 'closed')
-      .order('due_date', { ascending: true });
+      .not('status', 'in', '("closed", "completed_pending_approval")');
 
     if (error) {
+      console.error('Error fetching overdue findings:', error);
       throw new Error(`Failed to fetch overdue findings: ${error.message}`);
     }
-
-    return data || [];
+    return (data as unknown as Finding[]) || [];
   }
 
   /**
@@ -331,20 +317,14 @@ export class FindingsService {
     findingIds: string[], 
     status: FindingStatus
   ): Promise<void> {
-    const updateData: any = { status };
-    
-    // Set closed_at when status changes to closed
-    if (status === 'closed') {
-      updateData.closed_at = new Date().toISOString();
-    }
-
     const { error } = await supabase
       .from('findings')
-      .update(updateData)
+      .update({ status })
       .in('id', findingIds);
 
     if (error) {
-      throw new Error(`Failed to bulk update findings: ${error.message}`);
+      console.error('Error bulk updating finding status:', error);
+      throw new Error(`Failed to bulk update finding status: ${error.message}`);
     }
   }
 
@@ -352,57 +332,40 @@ export class FindingsService {
    * Get findings summary for dashboard
    */
   static async getDashboardSummary() {
-    const { data, error } = await supabase
-      .rpc('get_dashboard_metrics');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
 
+    const { data, error } = await supabase.rpc('get_dashboard_metrics', { user_id: user.id });
+    
     if (error) {
-      throw new Error(`Failed to fetch dashboard metrics: ${error.message}`);
+      console.error('Error fetching dashboard summary:', error);
+      return null;
     }
-
-    return data?.[0] || {
-      total_findings: 0,
-      open_findings: 0,
-      overdue_findings: 0,
-      critical_findings: 0,
-      completion_rate: 0,
-      avg_resolution_days: 0
-    };
+    return data && data.length > 0 ? data[0] : null;
   }
 
   /**
    * Subscribe to finding changes
    */
-  static subscribeToFindings(callback: (payload: any) => void) {
-    return supabase
-      .channel('findings-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'findings'
-        },
-        callback
-      )
+  static subscribeToFindings(callback: (payload: any) => void): () => Promise<"ok" | "timed out" | "error"> {
+    const channel = supabase.channel('public:findings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'findings' }, callback)
       .subscribe();
+    
+    return async () => await supabase.removeChannel(channel);
   }
 
   /**
    * Subscribe to comments changes for a specific finding
    */
-  static subscribeToComments(findingId: string, callback: (payload: any) => void) {
-    return supabase
-      .channel(`comments-${findingId}`)
+  static subscribeToComments(findingId: string, callback: (payload: any) => void): () => Promise<"ok" | "timed out" | "error"> {
+    const channel = supabase.channel(`public:comments:finding_id=eq.${findingId}`)
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'comments',
-          filter: `finding_id=eq.${findingId}`
-        },
+        { event: 'INSERT', schema: 'public', table: 'comments', filter: `finding_id=eq.${findingId}` },
         callback
       )
       .subscribe();
+    return async () => await supabase.removeChannel(channel);
   }
 } 
