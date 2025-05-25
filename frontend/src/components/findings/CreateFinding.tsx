@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../config/supabase';
 import { FindingsService, CreateFindingServicePayload } from '../../services/findingsService';
+import { NotificationService } from '../../services/notificationService';
 import type { FindingSeverity, FindingCategory } from '../../types/findings';
 
 interface Project {
@@ -106,10 +107,24 @@ const CreateFinding: React.FC = () => {
         status: 'open'
       };
 
-      await FindingsService.createFinding(submissionData);
+      const createdFinding = await FindingsService.createFinding(submissionData);
+      
+      // Send notification if finding is assigned
+      if (formData.assigned_to && user) {
+        try {
+          await NotificationService.notifyFindingAssignment(
+            createdFinding.id,
+            formData.assigned_to,
+            user.id
+          );
+        } catch (notificationError) {
+          console.error('Failed to send assignment notification:', notificationError);
+          // Don't fail the entire operation if notification fails
+        }
+      }
       
       // Redirect to findings list
-        navigate('/findings');
+      navigate('/findings');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to create finding');
     } finally {

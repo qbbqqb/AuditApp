@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { FindingsService, type FindingsFilters } from '../../services/findingsService';
+import { BulkImport } from './BulkImport';
 import type { Finding } from '../../types/findings';
+import type { ImportResult } from '../../services/bulkImportService';
 
 const FindingsList: React.FC = () => {
   const { user } = useAuth();
@@ -12,6 +14,7 @@ const FindingsList: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [filters, setFilters] = useState<FindingsFilters>({});
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   const severityColors = {
     critical: 'bg-red-100 text-red-800 border-red-200',
@@ -72,6 +75,18 @@ const FindingsList: React.FC = () => {
     return new Date(dueDate) < new Date();
   };
 
+  const handleImportComplete = (result: ImportResult) => {
+    // Refresh the findings list after successful import
+    fetchFindings();
+    setShowBulkImport(false);
+    
+    // Show success message
+    if (result.successful_imports > 0) {
+      setError(''); // Clear any existing errors
+      // You could add a success toast here
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -90,7 +105,16 @@ const FindingsList: React.FC = () => {
           </p>
         </div>
         {user?.role === 'client_safety_manager' && (
-          <div className="mt-4 sm:mt-0">
+          <div className="mt-4 sm:mt-0 flex space-x-3">
+            <button
+              onClick={() => setShowBulkImport(true)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              <svg className="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Bulk Import
+            </button>
             <Link
               to="/findings/new"
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
