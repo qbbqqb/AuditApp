@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../config/supabase';
+
 import { getAllProjects, createProject, updateProject } from '../../services/projectService';
 
 interface Project {

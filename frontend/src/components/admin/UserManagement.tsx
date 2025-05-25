@@ -93,62 +93,18 @@ const UserManagement: React.FC = () => {
     setError('');
     setSuccess('');
 
-    try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: createForm.email,
-        password: createForm.password,
-        email_confirm: true,
-        user_metadata: {
-          first_name: createForm.first_name,
-          last_name: createForm.last_name
-        }
-      });
+    // For development purposes, show instructions for manual user creation
+    // In production, this would be handled by a server-side API or Edge Function
+    setError(`User creation from admin panel requires server-side implementation. 
 
-      if (authError) {
-        setError(`Failed to create user: ${authError.message}`);
-        return;
-      }
+For now, please follow these steps:
+1. Ask the user to register at: ${window.location.origin}/register
+2. Once they register, you can edit their profile here to assign the correct role and company
+3. You can also activate/deactivate users as needed
 
-      // Create profile
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            email: createForm.email,
-            first_name: createForm.first_name,
-            last_name: createForm.last_name,
-            role: createForm.role,
-            company: createForm.company,
-            phone: createForm.phone || null,
-            is_active: true
-          });
-
-        if (profileError) {
-          setError(`Failed to create user profile: ${profileError.message}`);
-          return;
-        }
-      }
-
-      setSuccess('User created successfully');
-      setShowCreateForm(false);
-      setCreateForm({
-        email: '',
-        password: '',
-        first_name: '',
-        last_name: '',
-        role: 'gc_ehs_officer',
-        company: '',
-        phone: ''
-      });
-      await loadUsers();
-    } catch (error) {
-      setError('Network error. Please try again.');
-      console.error('Error creating user:', error);
-    } finally {
-      setCreating(false);
-    }
+This ensures proper security and email verification.`);
+    
+    setCreating(false);
   };
 
   const handleEditUser = async (updatedUser: Partial<User>) => {
@@ -178,9 +134,9 @@ const UserManagement: React.FC = () => {
 
   const handleResetPassword = async (userId: string, email: string) => {
     try {
-      const { error } = await supabase.auth.admin.generateLink({
-        type: 'recovery',
-        email: email,
+      // Try to send password reset email using the regular auth method
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
       });
 
       if (error) {
@@ -434,7 +390,7 @@ const UserManagement: React.FC = () => {
           <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 lg:w-1/3 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Create New User</h3>
+                <h3 className="text-lg font-medium text-gray-900">User Creation Instructions</h3>
                 <button
                   onClick={() => setShowCreateForm(false)}
                   className="text-gray-400 hover:text-gray-600"
@@ -557,7 +513,7 @@ const UserManagement: React.FC = () => {
                     disabled={creating}
                     className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {creating ? 'Creating...' : 'Create User'}
+                    {creating ? 'Processing...' : 'Show Instructions'}
                   </button>
                 </div>
               </form>
