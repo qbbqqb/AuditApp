@@ -126,11 +126,11 @@ const CreateFinding: React.FC = () => {
   };
 
   // Generate default due date (14 days from now)
-  const getDefaultDueDate = () => {
-    const date = new Date();
-    date.setDate(date.getDate() + 14);
-    return date.toISOString().split('T')[0];
-  };
+  // const getDefaultDueDate = () => {
+  //   const date = new Date();
+  //   date.setDate(date.getDate() + 14);
+  //   return date.toISOString().split('T')[0];
+  // };
 
   if (!user || user.role !== 'client_safety_manager') {
     return (

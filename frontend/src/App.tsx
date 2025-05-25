@@ -5,7 +5,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/layout/Layout';
 import LoginForm from './components/auth/LoginForm';
-import RegisterForm from './components/auth/RegisterForm';
 import FindingsList from './components/findings/FindingsList';
 import FindingDetail from './components/findings/FindingDetail';
 import CreateFinding from './components/findings/CreateFinding';
@@ -31,14 +30,14 @@ const queryClient = new QueryClient({
 });
 
 // Placeholder components (will be enhanced in later phases)
-const Reports = () => (
-  <div className="px-4 py-6 sm:px-0">
-    <div className="border-4 border-dashed border-gray-200 rounded-lg p-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-4">Reports</h1>
-      <p className="text-gray-600">Advanced reporting and analytics coming in Phase 4...</p>
-    </div>
-  </div>
-);
+// const Reports = () => (
+//   <div className="px-4 py-6 sm:px-0">
+//     <div className="border-4 border-dashed border-gray-200 rounded-lg p-8">
+//       <h1 className="text-3xl font-bold text-gray-900 mb-4">Reports</h1>
+//       <p className="text-gray-600">Advanced reporting and analytics coming in Phase 4...</p>
+//     </div>
+//   </div>
+// );
 
 function App() {
   return (
@@ -48,7 +47,6 @@ function App() {
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginForm />} />
-            <Route path="/register" element={<RegisterForm />} />
             <Route path="/test" element={<SupabaseTest />} />
             <Route path="/connection-test" element={<ConnectionTest />} />
             

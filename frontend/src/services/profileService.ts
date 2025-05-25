@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase'; // Adjust path as needed
-import { Profile, UserRole } from '../types/supabase'; // Adjust path as needed
+import { Profile } from '../types/supabase'; // Adjust path as needed
 
 // --- Admin Functions ---
 

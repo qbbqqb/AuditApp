@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAllUsersWithProfiles } from '../../services/profileService';
 import { getAllProjects, assignUserToProject, removeUserFromProject, getUsersForProject, getProjectsForUser } from '../../services/projectService';
@@ -20,6 +20,29 @@ const ProjectAssignments: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [viewMode, setViewMode] = useState<'by-project' | 'by-user'>('by-project');
 
+  // Define callback functions first
+  const loadProjectUsers = useCallback(async () => {
+    if (!selectedProject) return;
+    
+    try {
+      const users = await getUsersForProject(selectedProject);
+      setProjectUsers(users);
+    } catch (error) {
+      console.error('Error loading project users:', error);
+    }
+  }, [selectedProject]);
+
+  const loadUserProjects = useCallback(async () => {
+    if (!selectedUser) return;
+    
+    try {
+      const projects = await getProjectsForUser(selectedUser);
+      setUserProjects(projects);
+    } catch (error) {
+      console.error('Error loading user projects:', error);
+    }
+  }, [selectedUser]);
+
   useEffect(() => {
     if (currentUser && currentUser.role === 'admin') {
       loadData();
@@ -32,13 +55,13 @@ const ProjectAssignments: React.FC = () => {
     if (selectedProject && viewMode === 'by-project') {
       loadProjectUsers();
     }
-  }, [selectedProject, viewMode]);
+  }, [selectedProject, viewMode, loadProjectUsers]);
 
   useEffect(() => {
     if (selectedUser && viewMode === 'by-user') {
       loadUserProjects();
     }
-  }, [selectedUser, viewMode]);
+  }, [selectedUser, viewMode, loadUserProjects]);
 
   // Check if user is admin after hooks are called
   if (!currentUser || currentUser.role !== 'admin') {
@@ -72,28 +95,6 @@ const ProjectAssignments: React.FC = () => {
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadProjectUsers = async () => {
-    if (!selectedProject) return;
-    
-    try {
-      const users = await getUsersForProject(selectedProject);
-      setProjectUsers(users);
-    } catch (error) {
-      console.error('Error loading project users:', error);
-    }
-  };
-
-  const loadUserProjects = async () => {
-    if (!selectedUser) return;
-    
-    try {
-      const projects = await getProjectsForUser(selectedUser);
-      setUserProjects(projects);
-    } catch (error) {
-      console.error('Error loading user projects:', error);
     }
   };
 
