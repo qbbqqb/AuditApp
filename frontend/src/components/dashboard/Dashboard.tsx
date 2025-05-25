@@ -242,21 +242,22 @@ const Dashboard: React.FC = () => {
                       <div className="relative flex space-x-3">
                         <div>
                           <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${
-                            activity.activity_type === 'finding_created' ? 'bg-blue-500' :
-                            activity.activity_type === 'finding_closed' ? 'bg-green-500' :
+                            activity.activity_type === 'Finding Created' ? 'bg-blue-500' :
+                            activity.activity_type === 'Finding Closed' ? 'bg-green-500' :
+                            activity.activity_type === 'Comment Added' ? 'bg-gray-500' :
                             'bg-gray-500'
                           }`}>
-                            {activity.activity_type === 'finding_created' && (
+                            {activity.activity_type === 'Finding Created' && (
                               <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                               </svg>
                             )}
-                            {activity.activity_type === 'finding_closed' && (
+                            {activity.activity_type === 'Finding Closed' && (
                               <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                               </svg>
                             )}
-                            {activity.activity_type === 'comment_added' && (
+                            {activity.activity_type === 'Comment Added' && (
                               <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
                               </svg>
@@ -266,38 +267,12 @@ const Dashboard: React.FC = () => {
                         <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
                           <div>
                             <p className="text-sm text-gray-500">
-                              {activity.activity_type === 'finding_created' && (
-                                <>
-                                  <span className="font-medium text-gray-900">{activity.details.creator_name}</span> created finding{' '}
-                                  <span className="font-medium text-gray-900">"{activity.details.title}"</span>
-                                  {activity.details.project_name && (
-                                    <> in <span className="font-medium text-gray-900">{activity.details.project_name}</span></>
-                                  )}
-                                </>
-                              )}
-                              {activity.activity_type === 'finding_closed' && (
-                                <>
-                                  Finding <span className="font-medium text-gray-900">"{activity.details.title}"</span> was closed
-                                  {activity.details.assigned_name && (
-                                    <> by <span className="font-medium text-gray-900">{activity.details.assigned_name}</span></>
-                                  )}
-                                </>
-                              )}
-                              {activity.activity_type === 'comment_added' && (
-                                <>
-                                  <span className="font-medium text-gray-900">{activity.details.commenter_name}</span> commented on{' '}
-                                  <span className="font-medium text-gray-900">"{activity.details.title}"</span>
-                                </>
-                              )}
+                              <span className="font-medium text-gray-900">{activity.user_name}</span>{' '}
+                              {activity.description}
                             </p>
-                            {activity.details.comment_preview && (
-                              <p className="mt-1 text-sm text-gray-400 italic">
-                                "{activity.details.comment_preview.substring(0, 100)}..."
-                              </p>
-                            )}
                       </div>
                           <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                            {new Date(activity.timestamp).toLocaleDateString()}
+                            {new Date(activity.created_at).toLocaleDateString()}
                       </div>
                     </div>
                       </div>

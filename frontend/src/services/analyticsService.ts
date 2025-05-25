@@ -75,20 +75,10 @@ export interface ProjectHealth {
 }
 
 export interface RecentActivity {
-  activity_type: 'finding_created' | 'finding_closed' | 'comment_added';
-  timestamp: string;
-  details: {
-    finding_id?: string;
-    title?: string;
-    severity?: string;
-    category?: string;
-    project_name?: string;
-    creator_name?: string;
-    assigned_name?: string;
-    comment_preview?: string;
-    commenter_name?: string;
-    is_internal?: boolean;
-  };
+  activity_type: 'Finding Created' | 'Finding Closed' | 'Comment Added';
+  description: string;
+  user_name: string;
+  created_at: string;
 }
 
 export interface RiskAssessment {
