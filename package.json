@@ -19,7 +19,16 @@
   "devDependencies": {
     "concurrently": "^8.2.2"
   },
-  "keywords": ["health", "safety", "audit", "tracking", "compliance"],
+  "keywords": [
+    "health",
+    "safety",
+    "audit",
+    "tracking",
+    "compliance"
+  ],
   "author": "Your Company",
-  "license": "ISC"
-} 
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.8"
+  }
+}
