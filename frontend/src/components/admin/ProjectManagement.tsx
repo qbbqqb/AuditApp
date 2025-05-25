@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../config/supabase';
+import { getAllProjects, createProject, updateProject } from '../../services/projectService';
 
 interface Project {
   id: string;
@@ -72,17 +73,10 @@ const ProjectManagement: React.FC = () => {
   const loadProjects = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        setError('Failed to load projects');
-        console.error('Error loading projects:', error);
-      } else {
-        setProjects(data || []);
-      }
+      const data = await getAllProjects();
+      // Sort by created_at descending
+      const sortedProjects = data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setProjects(sortedProjects);
     } catch (error) {
       setError('Failed to load projects');
       console.error('Error loading projects:', error);
@@ -98,22 +92,15 @@ const ProjectManagement: React.FC = () => {
     setSuccess('');
 
     try {
-      const { error } = await supabase
-        .from('projects')
-        .insert({
-          name: createForm.name,
-          description: createForm.description || null,
-          client_company: createForm.client_company,
-          contractor_company: createForm.contractor_company,
-          start_date: createForm.start_date,
-          end_date: createForm.end_date || null,
-          is_active: true
-        });
-
-      if (error) {
-        setError(`Failed to create project: ${error.message}`);
-        return;
-      }
+      await createProject({
+        name: createForm.name,
+        description: createForm.description || undefined,
+        client_company: createForm.client_company,
+        contractor_company: createForm.contractor_company,
+        start_date: createForm.start_date,
+        end_date: createForm.end_date || undefined,
+        is_active: true
+      });
 
       setSuccess('Project created successfully');
       setShowCreateForm(false);
@@ -138,16 +125,7 @@ const ProjectManagement: React.FC = () => {
     if (!editingProject) return;
 
     try {
-      const { error } = await supabase
-        .from('projects')
-        .update(updatedProject)
-        .eq('id', editingProject.id);
-
-      if (error) {
-        setError(`Failed to update project: ${error.message}`);
-        return;
-      }
-
+      await updateProject(editingProject.id, updatedProject);
       setSuccess('Project updated successfully');
       setEditingProject(null);
       await loadProjects();
@@ -159,16 +137,7 @@ const ProjectManagement: React.FC = () => {
 
   const handleToggleProjectStatus = async (projectId: string, isActive: boolean) => {
     try {
-      const { error } = await supabase
-        .from('projects')
-        .update({ is_active: !isActive })
-        .eq('id', projectId);
-
-      if (error) {
-        setError(`Failed to ${isActive ? 'archive' : 'activate'} project: ${error.message}`);
-        return;
-      }
-
+      await updateProject(projectId, { is_active: !isActive });
       setSuccess(`Project ${isActive ? 'archived' : 'activated'} successfully`);
       await loadProjects();
     } catch (error) {

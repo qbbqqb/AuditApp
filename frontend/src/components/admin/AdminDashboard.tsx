@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../config/supabase';
+
+import { getAllUsersWithProfiles } from '../../services/profileService';
+import { getAllProjects } from '../../services/projectService';
+import { FindingsService } from '../../services/findingsService';
 
 interface AdminStats {
   totalUsers: number;
@@ -66,31 +69,23 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
 
-      // Get user stats
-      const { data: userStats } = await supabase
-        .from('profiles')
-        .select('id, is_active')
-        .select();
+      // Get user stats using our service
+      const userStats = await getAllUsersWithProfiles();
 
-      // Get project stats
-      const { data: projectStats } = await supabase
-        .from('projects')
-        .select('id, is_active')
-        .select();
+      // Get project stats using our service
+      const projectStats = await getAllProjects();
 
-      // Get finding stats
-      const { data: findingStats } = await supabase
-        .from('findings')
-        .select('id, status')
-        .select();
+      // Get finding stats using our service (admin can see all findings)
+      const findingResponse = await FindingsService.getAllFindings_admin({ limit: 1000 });
+      const findingStats = findingResponse.data;
 
       setStats({
-        totalUsers: userStats?.length || 0,
-        activeUsers: userStats?.filter(u => u.is_active).length || 0,
-        totalProjects: projectStats?.length || 0,
-        activeProjects: projectStats?.filter(p => p.is_active).length || 0,
-        totalFindings: findingStats?.length || 0,
-        openFindings: findingStats?.filter(f => f.status !== 'closed').length || 0,
+        totalUsers: userStats.length,
+        activeUsers: userStats.filter(u => u.is_active).length,
+        totalProjects: projectStats.length,
+        activeProjects: projectStats.filter(p => p.is_active).length,
+        totalFindings: findingStats.length,
+        openFindings: findingStats.filter(f => f.status !== 'closed').length,
         systemHealth: 'good' // TODO: Calculate based on metrics
       });
     } catch (error) {
@@ -126,6 +121,18 @@ const AdminDashboard: React.FC = () => {
       color: 'green'
     },
     {
+      title: 'Project Assignments',
+      description: 'Assign users to projects',
+      icon: (
+        <svg className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+      stats: `Manage user access`,
+      action: () => navigate('/admin/assignments'),
+      color: 'orange'
+    },
+    {
       title: 'System Analytics',
       description: 'View system performance and usage',
       icon: (
@@ -156,6 +163,7 @@ const AdminDashboard: React.FC = () => {
     const colors = {
       blue: 'bg-blue-50 border-blue-200 hover:bg-blue-100',
       green: 'bg-green-50 border-green-200 hover:bg-green-100',
+      orange: 'bg-orange-50 border-orange-200 hover:bg-orange-100',
       purple: 'bg-purple-50 border-purple-200 hover:bg-purple-100',
       gray: 'bg-gray-50 border-gray-200 hover:bg-gray-100'
     };

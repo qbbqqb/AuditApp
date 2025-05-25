@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../config/supabase';
+import { getAllUsersWithProfiles, updateUserProfile } from '../../services/profileService';
 
 interface User {
   id: string;
@@ -74,17 +75,10 @@ const UserManagement: React.FC = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        setError('Failed to load users');
-        console.error('Error loading users:', error);
-      } else {
-        setUsers(data || []);
-      }
+      const data = await getAllUsersWithProfiles();
+      // Sort by created_at descending
+      const sortedUsers = data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setUsers(sortedUsers);
     } catch (error) {
       setError('Failed to load users');
       console.error('Error loading users:', error);
@@ -161,16 +155,7 @@ const UserManagement: React.FC = () => {
     if (!editingUser) return;
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(updatedUser)
-        .eq('id', editingUser.id);
-
-      if (error) {
-        setError(`Failed to update user: ${error.message}`);
-        return;
-      }
-
+      await updateUserProfile(editingUser.id, updatedUser);
       setSuccess('User updated successfully');
       setEditingUser(null);
       await loadUsers();
@@ -182,16 +167,7 @@ const UserManagement: React.FC = () => {
 
   const handleToggleUserStatus = async (userId: string, isActive: boolean) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_active: !isActive })
-        .eq('id', userId);
-
-      if (error) {
-        setError(`Failed to ${isActive ? 'deactivate' : 'activate'} user: ${error.message}`);
-        return;
-      }
-
+      await updateUserProfile(userId, { is_active: !isActive });
       setSuccess(`User ${isActive ? 'deactivated' : 'activated'} successfully`);
       await loadUsers();
     } catch (error) {

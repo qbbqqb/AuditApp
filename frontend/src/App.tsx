@@ -16,6 +16,7 @@ import ConnectionTest from './components/ConnectionTest';
 import AdminDashboard from './components/admin/AdminDashboard';
 import UserManagement from './components/admin/UserManagement';
 import ProjectManagement from './components/admin/ProjectManagement';
+import ProjectAssignments from './components/admin/ProjectAssignments';
 import AdvancedAnalytics from './components/analytics/AdvancedAnalytics';
 import './App.css';
 
@@ -68,6 +69,7 @@ function App() {
               <Route path="admin" element={<AdminDashboard />} />
               <Route path="admin/users" element={<UserManagement />} />
               <Route path="admin/projects" element={<ProjectManagement />} />
+              <Route path="admin/assignments" element={<ProjectAssignments />} />
               <Route path="admin/analytics" element={<AdvancedAnalytics />} />
               <Route path="admin/settings" element={<div className="p-8 text-center text-gray-500">Settings coming soon...</div>} />
             </Route>
