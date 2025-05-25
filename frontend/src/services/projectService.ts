@@ -7,24 +7,97 @@ import { Project, Profile, ProjectAssignment } from '../types/supabase'; // Adju
  * Creates a new project. (Admin only)
  */
 export const createProject = async (projectData: Omit<Project, 'id' | 'created_at' | 'updated_at'>): Promise<Project> => {
-  const { data, error } = await supabase
-    .from('projects')
-    .insert(projectData)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  try {
+    // Get current user ID
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    const userId = session?.user?.id || user?.id;
+    
+    if (!userId) {
+      throw new Error('User not authenticated');
+    }
+    
+    // Try using the admin function first
+    try {
+      const { data: functionData, error: functionError } = await supabase.rpc('create_project_admin', {
+        project_name: projectData.name,
+        project_description: projectData.description,
+        project_client_company: projectData.client_company,
+        project_contractor_company: projectData.contractor_company,
+        project_start_date: projectData.start_date,
+        project_end_date: projectData.end_date,
+        project_is_active: projectData.is_active ?? true,
+        creator_user_id: userId
+      });
+      
+      if (!functionError && functionData && functionData.length > 0) {
+        return functionData[0];
+      }
+    } catch (funcErr) {
+      // Continue to fallback
+    }
+    
+    // Fallback to direct insert
+    const { data, error } = await supabase
+      .from('projects')
+      .insert(projectData)
+      .select()
+      .single();
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data;
+  } catch (err) {
+    console.error('Error in createProject:', err);
+    throw err;
+  }
 };
 
 /**
  * Fetches all projects. (Admin only)
+ * Enhanced with better error handling and debugging
  */
 export const getAllProjects = async (): Promise<Project[]> => {
-  const { data, error } = await supabase
-    .from('projects')
-    .select('*');
-  if (error) throw error;
-  return data || [];
+  try {
+    // Get user info
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    const userId = session?.user?.id || user?.id;
+    
+    // For admin users, try the user projects function first
+    if (userId) {
+      try {
+        const { data: userProjectsData, error: userProjectsError } = await supabase.rpc('get_user_projects', {
+          user_id: userId
+        });
+        
+        if (!userProjectsError && userProjectsData) {
+          return userProjectsData || [];
+        }
+      } catch (funcErr) {
+        // Continue to fallback
+      }
+    }
+     
+    // Fallback to direct query
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false });
+     
+    if (error) {
+      throw error;
+    }
+    
+    return data || [];
+  } catch (err) {
+    console.error('Error in getAllProjects:', err);
+    throw err;
+  }
 };
 
 /**

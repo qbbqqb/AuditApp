@@ -3,8 +3,10 @@ import MetricsCard from '../analytics/MetricsCard';
 import TrendChart from '../analytics/TrendChart';
 import HealthScore from '../analytics/HealthScore';
 import { analyticsService, DashboardMetrics, TrendData, ProjectHealth, RecentActivity } from '../../services/analyticsService';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Dashboard: React.FC = () => {
+  const { user } = useAuth();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [trendData, setTrendData] = useState<TrendData[]>([]);
   const [projectHealth, setProjectHealth] = useState<ProjectHealth[]>([]);
@@ -49,19 +51,7 @@ const Dashboard: React.FC = () => {
       analyticsService.unsubscribeFromAnalyticsUpdates(subscription);
       clearInterval(interval);
     };
-  }, []);
-
-  const formatDaysAgo = (days: number) => {
-    if (days === 0) return 'today';
-    if (days === 1) return 'yesterday';
-    return `${days} days ago`;
-  };
-
-  const formatTrendValue = (current: number, previous: number) => {
-    if (previous === 0) return current > 0 ? '+100%' : '0%';
-    const change = ((current - previous) / previous) * 100;
-    return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
-  };
+  }, [user]);
 
   if (error) {
     return (
@@ -101,13 +91,15 @@ const Dashboard: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Safety Dashboard</h1>
           <p className="text-gray-600 mt-1">Real-time overview of your safety audit system</p>
         </div>
-        <button
-          onClick={loadAnalyticsData}
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {loading ? 'Refreshing...' : 'Refresh'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={loadAnalyticsData}
+            disabled={loading}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {/* Key Metrics Grid */}

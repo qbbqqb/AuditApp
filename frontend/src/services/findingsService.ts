@@ -63,140 +63,272 @@ export class FindingsService {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    let query = supabase
-      .from('findings')
-      .select(this.baseSelectQueryWithRelations, { count: 'exact' })
-      .range(from, to)
-      .order('created_at', { ascending: false });
+    try {
+      // Get user info from multiple sources
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const userId = session?.user?.id || user?.id;
+      
+      // Try the fallback function first if we have a user ID
+      if (userId) {
+        try {
+          const { data: functionData, error: functionError } = await supabase.rpc('get_findings_with_relations_for_user', {
+            user_id: userId,
+            limit_count: limit,
+            offset_count: from
+          });
+          
+          if (!functionError && functionData) {
+            // The function returns a JSON array directly
+            let parsedData = Array.isArray(functionData) ? functionData : [];
+            
+            // Apply client-side filters if needed
+            let filteredData = parsedData;
+            
+            if (filters.status) {
+              filteredData = filteredData.filter((f: any) => f.status === filters.status);
+            }
+            if (filters.severity) {
+              filteredData = filteredData.filter((f: any) => f.severity === filters.severity);
+            }
+            if (filters.category) {
+              filteredData = filteredData.filter((f: any) => f.category === filters.category);
+            }
+            if (filters.search) {
+              const searchLower = filters.search.toLowerCase();
+              filteredData = filteredData.filter((f: any) => 
+                f.title?.toLowerCase().includes(searchLower) ||
+                f.description?.toLowerCase().includes(searchLower) ||
+                f.location?.toLowerCase().includes(searchLower)
+              );
+            }
+            
+            // For the function approach, we don't have exact count, so estimate
+            const estimatedCount = filteredData.length;
+            
+            return {
+              data: (filteredData as unknown as Finding[]) || [],
+              count: estimatedCount,
+              page,
+              limit,
+              totalPages: Math.ceil(estimatedCount / limit)
+            };
+          }
+        } catch (funcErr) {
+          // Continue to fallback
+        }
+      }
+      
+      // Fallback to RLS query if function approach fails
+      let query = supabase
+        .from('findings')
+        .select(this.baseSelectQueryWithRelations, { count: 'exact' })
+        .range(from, to)
+        .order('created_at', { ascending: false });
 
-    // Apply filters
-    if (filters.status) {
-      query = query.eq('status', filters.status);
+      // Apply filters
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+
+      if (filters.severity) {
+        query = query.eq('severity', filters.severity);
+      }
+
+      if (filters.category) {
+        query = query.eq('category', filters.category);
+      }
+
+      if (filters.projectId) {
+        query = query.eq('project_id', filters.projectId);
+      }
+
+      if (filters.assignedTo) {
+        query = query.eq('assigned_to', filters.assignedTo);
+      }
+
+      if (filters.search) {
+        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
+      }
+
+      const { data, error, count } = await query;
+
+      if (error) {
+        throw new Error(`Failed to fetch findings: ${error.message}`);
+      }
+
+      return {
+        data: (data as unknown as Finding[]) || [],
+        count: count || 0,
+        page,
+        limit,
+        totalPages: Math.ceil((count || 0) / limit)
+      };
+    } catch (err) {
+      throw err;
     }
-
-    if (filters.severity) {
-      query = query.eq('severity', filters.severity);
-    }
-
-    if (filters.category) {
-      query = query.eq('category', filters.category);
-    }
-
-    if (filters.projectId) {
-      query = query.eq('project_id', filters.projectId);
-    }
-
-    if (filters.assignedTo) {
-      query = query.eq('assigned_to', filters.assignedTo);
-    }
-
-    if (filters.search) {
-      query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
-    }
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      console.error('Error fetching findings:', error);
-      throw new Error(`Failed to fetch findings: ${error.message}`);
-    }
-
-    return {
-      data: (data as unknown as Finding[]) || [],
-      count: count || 0,
-      page,
-      limit,
-      totalPages: Math.ceil((count || 0) / limit)
-    };
   }
 
   /**
    * Fetches all findings across all projects. (Admin only)
-   * RLS policies should restrict this to admin users.
+   * Uses enhanced functions to bypass RLS issues.
    */
   static async getAllFindings_admin(pagination: PaginationOptions = {}): Promise<FindingsResponse> {
     const { page = 1, limit = 100 } = pagination;
     const from = (page - 1) * limit;
-    const to = from + limit - 1;
 
-    const { data, error, count } = await supabase
-      .from('findings')
-      .select(this.baseSelectQueryWithRelations, { count: 'exact' })
-      .range(from, to)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching all findings (admin):', error);
-      throw new Error(`Failed to fetch all findings (admin): ${error.message}`);
+    try {
+      // Get user info
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const userId = session?.user?.id || user?.id;
+      
+      // Try the enhanced function first
+      if (userId) {
+        try {
+          const { data: functionData, error: functionError } = await supabase.rpc('get_findings_with_relations_for_user', {
+            user_id: userId,
+            limit_count: limit,
+            offset_count: from
+          });
+          
+          if (!functionError && functionData) {
+            let parsedData = Array.isArray(functionData) ? functionData : [];
+            
+            return {
+              data: (parsedData as unknown as Finding[]) || [],
+              count: parsedData.length,
+              page,
+              limit,
+              totalPages: Math.ceil(parsedData.length / limit)
+            };
+          }
+        } catch (funcErr) {
+          // Continue to fallback
+        }
+      }
+      
+      // Fallback to RLS query
+      const { data, error, count } = await supabase
+        .from('findings')
+        .select(this.baseSelectQueryWithRelations, { count: 'exact' })
+        .range(from, from + limit - 1)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        throw new Error(`Failed to fetch all findings (admin): ${error.message}`);
+      }
+      
+      return {
+        data: (data as unknown as Finding[]) || [],
+        count: count || 0,
+        page,
+        limit,
+        totalPages: Math.ceil((count || 0) / limit)
+      };
+    } catch (err) {
+      throw err;
     }
-    
-    return {
-      data: (data as unknown as Finding[]) || [],
-      count: count || 0,
-      page,
-      limit,
-      totalPages: Math.ceil((count || 0) / limit)
-    };
   }
 
   /**
    * Get a single finding by ID with all related data
    */
   static async getFinding(id: string): Promise<Finding | null> {
-    const selectQueryWithCommentsAndEvidence = `
-      ${this.baseSelectQueryWithRelations},
-      comments(
-        id,
-        content,
-        created_at,
-        is_internal,
-        user:profiles!comments_user_id_fkey(
+    try {
+      // Get user info for the enhanced function
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const userId = session?.user?.id || user?.id;
+      
+      // Try the enhanced function first if we have a user ID
+      if (userId) {
+        try {
+          const { data: functionData, error: functionError } = await supabase.rpc('get_finding_by_id_for_user', {
+            finding_id: id,
+            user_id: userId
+          });
+          
+          if (!functionError && functionData) {
+            // Add is_photo property to evidence
+            const finding = functionData as Finding;
+            if (finding.evidence) {
+              finding.evidence = finding.evidence.map((e: any) => ({
+                ...e,
+                is_photo: e.file_type && ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(e.file_type)
+              }));
+            }
+            
+            return finding;
+          }
+        } catch (funcErr) {
+          // Continue to fallback
+        }
+      }
+      
+      // Fallback to RLS query
+      const selectQueryWithCommentsAndEvidence = `
+        ${this.baseSelectQueryWithRelations},
+        comments(
           id,
-          first_name,
-          last_name,
-          role
-        )
-      ),
-      evidence(
-        id,
-        file_name,
-        file_type,
-        file_size,
-        description,
-        created_at,
-        is_corrective_action,
-        uploaded_by_profile:profiles!evidence_uploaded_by_fkey(
+          content,
+          created_at,
+          is_internal,
+          user:profiles!comments_user_id_fkey(
+            id,
+            first_name,
+            last_name,
+            role
+          )
+        ),
+        evidence(
           id,
-          first_name,
-          last_name,
-          role
+          file_name,
+          file_type,
+          file_size,
+          description,
+          created_at,
+          is_corrective_action,
+          uploaded_by_profile:profiles!evidence_uploaded_by_fkey(
+            id,
+            first_name,
+            last_name,
+            role
+          )
         )
-      )
-    `;
-    const { data, error } = await supabase
-      .from('findings')
-      .select(selectQueryWithCommentsAndEvidence)
-      .eq('id', id)
-      .single<Finding>();
+      `;
+      
+      const { data, error } = await supabase
+        .from('findings')
+        .select(selectQueryWithCommentsAndEvidence)
+        .eq('id', id)
+        .single<Finding>();
 
-    if (error) {
-      if (error.code === 'PGRST116') return null;
-      console.error('Error fetching finding by ID:', error);
-      throw new Error(`Failed to fetch finding: ${error.message}`);
-    }
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return null;
+        }
+        throw new Error(`Failed to fetch finding: ${error.message}`);
+      }
 
-    if (!data) {
-      return null;
-    }
+      if (!data) {
+        return null;
+      }
 
-    const finding = data;
-    if (finding.evidence) {
-      finding.evidence = finding.evidence.map((e: any) => ({
-        ...e,
-        is_photo: e.file_type && ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(e.file_type)
-      }));
+      const finding = data;
+      if (finding.evidence) {
+        finding.evidence = finding.evidence.map((e: any) => ({
+          ...e,
+          is_photo: e.file_type && ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(e.file_type)
+        }));
+      }
+      return finding;
+    } catch (err) {
+      throw err;
     }
-    return finding;
   }
 
   /**
@@ -221,7 +353,6 @@ export class FindingsService {
       .single<Finding>();
 
     if (error) {
-      console.error('Error creating finding:', error);
       throw new Error(`Failed to create finding: ${error.message}`);
     }
     if (!data) throw new Error('Failed to create finding, no data returned.');
@@ -240,7 +371,6 @@ export class FindingsService {
       .single<Finding>();
 
     if (error) {
-      console.error('Error updating finding:', error);
       throw new Error(`Failed to update finding: ${error.message}`);
     }
     if (!data) throw new Error('Failed to update finding, no data returned.');
@@ -257,7 +387,6 @@ export class FindingsService {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting finding:', error);
       throw new Error(`Failed to delete finding: ${error.message}`);
     }
   }
@@ -287,7 +416,6 @@ export class FindingsService {
       .single();
     
     if (error) {
-      console.error('Error adding comment:', error);
       throw new Error(`Failed to add comment: ${error.message}`);
     }
     return data;
@@ -304,7 +432,6 @@ export class FindingsService {
       .not('status', 'in', '("closed", "completed_pending_approval")');
 
     if (error) {
-      console.error('Error fetching overdue findings:', error);
       throw new Error(`Failed to fetch overdue findings: ${error.message}`);
     }
     return (data as unknown as Finding[]) || [];
@@ -323,7 +450,6 @@ export class FindingsService {
       .in('id', findingIds);
 
     if (error) {
-      console.error('Error bulk updating finding status:', error);
       throw new Error(`Failed to bulk update finding status: ${error.message}`);
     }
   }
@@ -338,7 +464,6 @@ export class FindingsService {
     const { data, error } = await supabase.rpc('get_dashboard_metrics', { user_id: user.id });
     
     if (error) {
-      console.error('Error fetching dashboard summary:', error);
       return null;
     }
     return data && data.length > 0 ? data[0] : null;

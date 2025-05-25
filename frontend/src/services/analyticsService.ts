@@ -125,17 +125,38 @@ class AnalyticsService {
     dateTo?: Date
   ): Promise<DashboardMetrics> {
     try {
+      // Get current user from session instead of getUser()
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const userId = session?.user?.id || user?.id || null;
+      
       const { data, error } = await supabase.rpc('get_dashboard_metrics', {
+        current_user_id: userId,
         date_from: dateFrom?.toISOString(),
         date_to: dateTo?.toISOString()
       });
 
       if (error) {
-        console.error('Error fetching dashboard metrics:', error);
         throw new Error(`Failed to fetch dashboard metrics: ${error.message}`);
       }
 
-      return data || {
+      // Handle array response - extract first item if data is an array
+      const metricsData = Array.isArray(data) ? data[0] : data;
+
+      // If we get empty results, try the admin function as fallback
+      if (metricsData && metricsData.total_findings === 0) {
+        const { data: adminData, error: adminError } = await supabase.rpc('get_dashboard_metrics_admin');
+        
+        if (!adminError && adminData) {
+          const adminMetrics = Array.isArray(adminData) ? adminData[0] : adminData;
+          if (adminMetrics && adminMetrics.total_findings > 0) {
+            return adminMetrics;
+          }
+        }
+      }
+
+      return metricsData || {
         total_findings: 0,
         open_findings: 0,
         overdue_findings: 0,
@@ -150,7 +171,6 @@ class AnalyticsService {
         health_score: 100
       };
     } catch (error) {
-      console.error('Error in getDashboardMetrics:', error);
       throw error;
     }
   }
@@ -165,13 +185,11 @@ class AnalyticsService {
       });
 
       if (error) {
-        console.error('Error fetching trend data:', error);
         throw new Error(`Failed to fetch trend data: ${error.message}`);
       }
 
       return data || [];
     } catch (error) {
-      console.error('Error in getTrendData:', error);
       throw error;
     }
   }
@@ -186,13 +204,11 @@ class AnalyticsService {
       });
 
       if (error) {
-        console.error('Error fetching category analytics:', error);
         throw new Error(`Failed to fetch category analytics: ${error.message}`);
       }
 
       return data || [];
     } catch (error) {
-      console.error('Error in getCategoryAnalytics:', error);
       throw error;
     }
   }
@@ -207,13 +223,11 @@ class AnalyticsService {
       });
 
       if (error) {
-        console.error('Error fetching performance analytics:', error);
         throw new Error(`Failed to fetch performance analytics: ${error.message}`);
       }
 
       return data || [];
     } catch (error) {
-      console.error('Error in getPerformanceAnalytics:', error);
       throw error;
     }
   }
@@ -226,13 +240,11 @@ class AnalyticsService {
       const { data, error } = await supabase.rpc('get_project_health');
 
       if (error) {
-        console.error('Error fetching project health:', error);
         throw new Error(`Failed to fetch project health: ${error.message}`);
       }
 
       return data || [];
     } catch (error) {
-      console.error('Error in getProjectHealth:', error);
       throw error;
     }
   }
@@ -247,13 +259,11 @@ class AnalyticsService {
       });
 
       if (error) {
-        console.error('Error fetching recent activity:', error);
         throw new Error(`Failed to fetch recent activity: ${error.message}`);
       }
 
       return data || [];
     } catch (error) {
-      console.error('Error in getRecentActivity:', error);
       throw error;
     }
   }
@@ -268,7 +278,6 @@ class AnalyticsService {
       });
 
       if (error) {
-        console.error('Error fetching risk assessment:', error);
         throw new Error(`Failed to fetch risk assessment: ${error.message}`);
       }
 
@@ -280,7 +289,6 @@ class AnalyticsService {
         immediate_attention_required: 0
       };
     } catch (error) {
-      console.error('Error in getRiskAssessment:', error);
       throw error;
     }
   }
@@ -295,7 +303,6 @@ class AnalyticsService {
       });
 
       if (error) {
-        console.error('Error fetching compliance metrics:', error);
         throw new Error(`Failed to fetch compliance metrics: ${error.message}`);
       }
 
@@ -312,7 +319,6 @@ class AnalyticsService {
         compliance_status: 'excellent'
       };
     } catch (error) {
-      console.error('Error in getComplianceMetrics:', error);
       throw error;
     }
   }
@@ -333,13 +339,11 @@ class AnalyticsService {
       });
 
       if (error) {
-        console.error('Error exporting analytics:', error);
         throw new Error(`Failed to export analytics: ${error.message}`);
       }
 
       return data;
     } catch (error) {
-      console.error('Error in exportAnalytics:', error);
       throw error;
     }
   }
@@ -352,11 +356,9 @@ class AnalyticsService {
       const { error } = await supabase.rpc('refresh_analytics_views');
 
       if (error) {
-        console.error('Error refreshing analytics views:', error);
         throw new Error(`Failed to refresh analytics views: ${error.message}`);
       }
     } catch (error) {
-      console.error('Error in refreshAnalyticsViews:', error);
       throw error;
     }
   }

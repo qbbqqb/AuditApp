@@ -5,6 +5,7 @@ import { FindingsService, type FindingsFilters } from '../../services/findingsSe
 import { BulkImport } from './BulkImport';
 import type { Finding } from '../../types/findings';
 import type { ImportResult } from '../../services/bulkImportService';
+import { supabase } from '../../config/supabase';
 
 const FindingsList: React.FC = () => {
   const { user } = useAuth();
@@ -15,6 +16,30 @@ const FindingsList: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [filters, setFilters] = useState<FindingsFilters>({});
   const [showBulkImport, setShowBulkImport] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+
+  // Debug authentication state
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      setDebugInfo({
+        contextUser: user,
+        authUser: authUser,
+        session: session,
+        userIdFromContext: user?.id,
+        userIdFromAuth: authUser?.id,
+        userIdFromSession: session?.user?.id,
+        userRole: user?.role,
+        userEmail: user?.email,
+        sessionExists: !!session,
+        userExists: !!authUser
+      });
+    };
+    
+    checkAuth();
+  }, [user]);
 
   const severityColors = {
     critical: 'bg-red-100 text-red-800 border-red-200',
@@ -41,9 +66,18 @@ const FindingsList: React.FC = () => {
         { page: currentPage, limit: 10 }
       );
 
+      console.log('FindingsList received response:', response);
+      console.log('FindingsList received data:', response.data);
+      if (response.data && response.data.length > 0) {
+        console.log('First finding in component:', response.data[0]);
+        console.log('First finding project:', response.data[0].project);
+        console.log('First finding created_by_profile:', response.data[0].created_by_profile);
+      }
+
       setFindings(response.data);
       setTotalPages(response.totalPages);
     } catch (err) {
+      console.error('Error in fetchFindings:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
@@ -97,6 +131,16 @@ const FindingsList: React.FC = () => {
 
   return (
     <div className="px-4 py-6 sm:px-0">
+      {/* Debug Info - Temporarily hidden */}
+      {false && debugInfo && (
+        <div className="mb-4 p-4 bg-gray-100 rounded-lg">
+          <h3 className="font-bold text-sm mb-2">Debug Info:</h3>
+          <pre className="text-xs overflow-auto">
+            {JSON.stringify(debugInfo, null, 2)}
+          </pre>
+        </div>
+      )}
+      
       <div className="sm:flex sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Safety Findings</h1>
@@ -257,7 +301,7 @@ const FindingsList: React.FC = () => {
                         </p>
                         <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
                           <span className="mr-1">🏗️</span>
-                          {finding.project.name}
+                          {finding.project?.name || 'Unknown Project'}
                         </p>
                       </div>
                       <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
@@ -270,11 +314,11 @@ const FindingsList: React.FC = () => {
                     
                     <div className="mt-2 sm:flex sm:justify-between">
                       <p className="text-sm text-gray-500">
-                        Created by: {finding.created_by_profile.first_name} {finding.created_by_profile.last_name}
+                        Created by: {finding.created_by_profile?.first_name || 'Unknown'} {finding.created_by_profile?.last_name || 'User'}
                       </p>
                       {finding.assigned_to_profile && (
                         <p className="text-sm text-gray-500">
-                          Assigned to: {finding.assigned_to_profile.first_name} {finding.assigned_to_profile.last_name}
+                          Assigned to: {finding.assigned_to_profile?.first_name || 'Unknown'} {finding.assigned_to_profile?.last_name || 'User'}
                         </p>
                       )}
                     </div>
