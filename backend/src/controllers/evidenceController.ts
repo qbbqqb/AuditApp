@@ -28,20 +28,44 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req: any, file: Express.Multer.File, cb: any) => {
+  // Log all file upload attempts for debugging
+  console.log(`File upload attempt: ${file.originalname}, MIME: ${file.mimetype}, Extension: ${path.extname(file.originalname)}`);
+  
   // Allowed file types - prioritizing images for observation photos
-  const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|mp4|mov|avi|mp3|wav|webp/;
+  const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|mp4|mov|avi|mp3|wav|webp/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = file.mimetype.includes('image') || 
-                   file.mimetype.includes('pdf') || 
-                   file.mimetype.includes('video') || 
-                   file.mimetype.includes('audio') ||
-                   file.mimetype.includes('document') ||
-                   file.mimetype.includes('word');
+  
+  // More comprehensive MIME type checking
+  const allowedMimeTypes = [
+    // Images
+    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+    // Documents
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    // Excel files
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    // Videos
+    'video/mp4', 'video/quicktime', 'video/x-msvideo',
+    // Audio
+    'audio/mpeg', 'audio/wav', 'audio/mp3'
+  ];
+  
+  const mimetypeAllowed = allowedMimeTypes.includes(file.mimetype) ||
+                         file.mimetype.startsWith('image/') ||
+                         file.mimetype.startsWith('video/') ||
+                         file.mimetype.startsWith('audio/');
 
-  if (mimetype && extname) {
+  console.log(`Extension allowed: ${extname}, MIME allowed: ${mimetypeAllowed}`);
+
+  if (mimetypeAllowed && extname) {
+    console.log(`✅ File accepted: ${file.originalname}`);
     return cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only images, documents, videos, and audio files are allowed.'));
+    console.log(`❌ Rejected file: ${file.originalname}, MIME: ${file.mimetype}, Extension: ${path.extname(file.originalname)}`);
+    cb(new Error(`Invalid file type: ${file.mimetype}. Only images, documents (PDF, DOC, DOCX, XLS, XLSX), videos, and audio files are allowed.`));
   }
 };
 
@@ -82,7 +106,13 @@ const createThumbnail = async (filePath: string): Promise<string | null> => {
 
 export const uploadEvidence = async (req: MulterRequest, res: Response): Promise<void> => {
   try {
+    console.log('📤 Upload evidence request received');
+    console.log('User:', req.user ? `${req.user.id} (${req.user.role})` : 'Not authenticated');
+    console.log('File:', req.file ? `${req.file.originalname} (${req.file.size} bytes)` : 'No file');
+    console.log('Body:', req.body);
+
     if (!req.user) {
+      console.log('❌ Authentication failed');
       res.status(401).json({
         success: false,
         message: 'User not authenticated'
@@ -91,6 +121,7 @@ export const uploadEvidence = async (req: MulterRequest, res: Response): Promise
     }
 
     if (!req.file) {
+      console.log('❌ No file in request');
       res.status(400).json({
         success: false,
         message: 'No file uploaded'
@@ -146,20 +177,40 @@ export const uploadEvidence = async (req: MulterRequest, res: Response): Promise
     const isPhoto = req.file.mimetype.startsWith('image/');
 
     // Save evidence record to database
+    console.log('💾 Saving evidence to database...');
+    
+    // Truncate description to fit database constraint if needed
+    const truncatedDescription = description && description.length > 50 
+      ? description.substring(0, 47) + '...' 
+      : description;
+    
+    // Truncate file_type to fit database constraint (50 characters max)
+    const truncatedFileType = req.file.mimetype.length > 50 
+      ? req.file.mimetype.substring(0, 50) 
+      : req.file.mimetype;
+    
+    // Truncate file_name to fit database constraint if needed (255 characters max typically)
+    const truncatedFileName = req.file.originalname.length > 255 
+      ? req.file.originalname.substring(0, 252) + '...' 
+      : req.file.originalname;
+    
+    const evidenceData = {
+      finding_id,
+      uploaded_by: req.user.id,
+      file_name: truncatedFileName,
+      file_path: req.file.path,
+      file_type: truncatedFileType,
+      file_size: req.file.size,
+      description: truncatedDescription || null,
+      is_corrective_action: is_corrective_action === 'true',
+      thumbnail_path: thumbnailPath,
+      is_photo: isPhoto
+    };
+    console.log('Evidence data:', evidenceData);
+
     const { data: evidence, error } = await supabaseAdmin
       .from('evidence')
-      .insert({
-        finding_id,
-        uploaded_by: req.user.id,
-        file_name: req.file.originalname,
-        file_path: req.file.path,
-        file_type: req.file.mimetype,
-        file_size: req.file.size,
-        description: description || null,
-        is_corrective_action: is_corrective_action === 'true',
-        thumbnail_path: thumbnailPath,
-        is_photo: isPhoto
-      })
+      .insert(evidenceData)
       .select(`
         *,
         uploaded_by_profile:profiles!evidence_uploaded_by_fkey(first_name, last_name, role)
@@ -167,6 +218,7 @@ export const uploadEvidence = async (req: MulterRequest, res: Response): Promise
       .single();
 
     if (error) {
+      console.log('❌ Database error:', error);
       // Clean up uploaded files
       if (fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
@@ -183,13 +235,15 @@ export const uploadEvidence = async (req: MulterRequest, res: Response): Promise
       return;
     }
 
+    console.log('✅ Evidence saved successfully:', evidence.id);
+
     res.status(201).json({
       success: true,
       data: evidence,
       message: 'Evidence uploaded successfully'
     });
   } catch (error) {
-    console.error('Upload evidence error:', error);
+    console.error('❌ Upload evidence error:', error);
     
     // Clean up uploaded file if it exists
     if (req.file && fs.existsSync(req.file.path)) {
@@ -198,7 +252,8 @@ export const uploadEvidence = async (req: MulterRequest, res: Response): Promise
     
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };

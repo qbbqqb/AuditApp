@@ -30,12 +30,15 @@ const EvidenceSubmission: React.FC<EvidenceSubmissionProps> = ({
   onStatusUpdate,
   updating
 }) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [completionNotes, setCompletionNotes] = useState('');
   const [uploadingFile, setUploadingFile] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [refreshPhotos, setRefreshPhotos] = useState(0);
+  const [deletingEvidence, setDeletingEvidence] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
     loadAllEvidence();
@@ -43,12 +46,16 @@ const EvidenceSubmission: React.FC<EvidenceSubmissionProps> = ({
 
   const loadAllEvidence = async () => {
     try {
-      const token = localStorage.getItem('token');
+      if (!session?.access_token) {
+        console.error('No access token available');
+        return;
+      }
+
       const response = await fetch(
         `${process.env.REACT_APP_API_BASE_URL}/evidence/finding/${findingId}`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${session.access_token}`,
           },
         }
       );
@@ -62,8 +69,33 @@ const EvidenceSubmission: React.FC<EvidenceSubmissionProps> = ({
     }
   };
 
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files);
+    }
+  };
+
   const handleFileUpload = async (files: FileList, isCorrectiveAction = true) => {
     if (!files.length) return;
+
+    if (!session?.access_token) {
+      setError('Authentication required. Please log in again.');
+      return;
+    }
 
     setUploadingFile(true);
     setError('');
@@ -76,13 +108,12 @@ const EvidenceSubmission: React.FC<EvidenceSubmissionProps> = ({
         formData.append('description', completionNotes || `Completion evidence: ${file.name}`);
         formData.append('is_corrective_action', isCorrectiveAction.toString());
 
-        const token = localStorage.getItem('token');
         const response = await fetch(
           `${process.env.REACT_APP_API_BASE_URL}/evidence/finding/${findingId}`,
           {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${token}`,
+              'Authorization': `Bearer ${session.access_token}`,
             },
             body: formData,
           }
@@ -92,6 +123,10 @@ const EvidenceSubmission: React.FC<EvidenceSubmissionProps> = ({
         if (response.ok) {
           setSuccess(`✅ ${file.name} uploaded successfully`);
           loadAllEvidence(); // Refresh evidence list
+          // Trigger PhotoGallery refresh if it's an image
+          if (file.type.startsWith('image/')) {
+            setRefreshPhotos(prev => prev + 1);
+          }
         } else {
           setError(data.message || `Failed to upload ${file.name}`);
         }
@@ -101,6 +136,51 @@ const EvidenceSubmission: React.FC<EvidenceSubmissionProps> = ({
     }
 
     setUploadingFile(false);
+  };
+
+  const handleDeleteEvidence = async (evidenceId: string, fileName: string) => {
+    if (!session?.access_token) {
+      setError('Authentication required. Please log in again.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete "${fileName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingEvidence(evidenceId);
+    setError('');
+
+    try {
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/evidence/${evidenceId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        // Remove the evidence from the list
+        setEvidence(prev => prev.filter(e => e.id !== evidenceId));
+        // Trigger PhotoGallery refresh if it was a photo
+        const deletedEvidence = evidence.find(e => e.id === evidenceId);
+        if (deletedEvidence?.is_photo) {
+          setRefreshPhotos(prev => prev + 1);
+        }
+        setSuccess(`Successfully deleted ${fileName}`);
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(data.message || 'Failed to delete evidence');
+      }
+    } catch (error) {
+      setError('Network error deleting evidence');
+    } finally {
+      setDeletingEvidence(null);
+    }
   };
 
   const handleSubmitForApproval = async () => {
@@ -116,21 +196,22 @@ const EvidenceSubmission: React.FC<EvidenceSubmissionProps> = ({
 
     // TODO: Save completion notes as a comment
     try {
-      const token = localStorage.getItem('token');
-      await fetch(
-        `${process.env.REACT_APP_API_BASE_URL}/findings/${findingId}/comments`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            content: `**COMPLETION NOTES:**\n\n${completionNotes}`,
-            is_internal: false
-          }),
-        }
-      );
+      if (session?.access_token) {
+        await fetch(
+          `${process.env.REACT_APP_API_BASE_URL}/findings/${findingId}/comments`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              content: `**COMPLETION NOTES:**\n\n${completionNotes}`,
+              is_internal: false
+            }),
+          }
+        );
+      }
     } catch (error) {
       console.error('Error saving completion notes:', error);
     }
@@ -175,24 +256,34 @@ const EvidenceSubmission: React.FC<EvidenceSubmissionProps> = ({
           </div>
 
           <div className="p-6 space-y-6">
-            {/* File Upload Section */}
+            {/* Single Upload Section - All File Types */}
             <div>
-              <h4 className="text-md font-medium text-gray-900 mb-4">Upload Evidence Files</h4>
+              <h4 className="text-md font-medium text-gray-900 mb-4">📎 Upload Evidence Files</h4>
               
-              {/* Drag & Drop Upload Area */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+              {/* Unified Drag & Drop Upload Area */}
+              <div 
+                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                  dragActive 
+                    ? 'border-blue-400 bg-blue-50' 
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
                 <input
                   type="file"
                   id="evidence-upload"
                   multiple
-                  accept="image/*,.pdf,.doc,.docx,.mp4,.mov,.avi"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.mp4,.mov,.avi,.mp3,.wav"
                   onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
                   className="hidden"
                   disabled={uploadingFile}
                 />
                 <label htmlFor="evidence-upload" className="cursor-pointer">
                   <div className="space-y-2">
-                    <div className="text-gray-400">
+                    <div className={`${dragActive ? 'text-blue-500' : 'text-gray-400'}`}>
                       <svg className="mx-auto h-12 w-12" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                         <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
@@ -200,6 +291,8 @@ const EvidenceSubmission: React.FC<EvidenceSubmissionProps> = ({
                     <div className="text-sm text-gray-600">
                       {uploadingFile ? (
                         <span className="text-blue-600">Uploading files...</span>
+                      ) : dragActive ? (
+                        <span className="text-blue-600 font-medium">Drop files here</span>
                       ) : (
                         <>
                           <span className="font-medium">Click to upload</span> or drag and drop
@@ -207,46 +300,49 @@ const EvidenceSubmission: React.FC<EvidenceSubmissionProps> = ({
                       )}
                     </div>
                     <div className="text-xs text-gray-500">
-                      Photos, Videos, Documents (PDF, DOC, DOCX) up to 10MB each
+                      📷 Photos, 📄 Documents (PDF, DOC, DOCX, XLS, XLSX), 🎥 Videos, 🎵 Audio up to 10MB each
                     </div>
                   </div>
                 </label>
               </div>
             </div>
 
-            {/* Current Evidence Summary */}
-            {evidence.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <h5 className="font-medium text-blue-900 mb-2">📷 Photos ({photos.length})</h5>
-                  <div className="text-sm text-blue-700">
-                    {photos.length > 0 ? (
-                      <ul className="space-y-1">
-                        {photos.slice(0, 3).map(photo => (
-                          <li key={photo.id} className="truncate">• {photo.file_name}</li>
-                        ))}
-                        {photos.length > 3 && <li>• ...and {photos.length - 3} more</li>}
-                      </ul>
-                    ) : (
-                      <span className="italic">No photos uploaded yet</span>
-                    )}
-                  </div>
-                </div>
+            {/* Photos Gallery - Display uploaded photos */}
+            <div>
+              <PhotoGallery
+                findingId={findingId}
+                canDelete={true}
+                refreshTrigger={refreshPhotos}
+              />
+            </div>
 
-                <div className="bg-green-50 rounded-lg p-4">
-                  <h5 className="font-medium text-green-900 mb-2">📄 Documents ({documents.length})</h5>
-                  <div className="text-sm text-green-700">
-                    {documents.length > 0 ? (
-                      <ul className="space-y-1">
-                        {documents.slice(0, 3).map(doc => (
-                          <li key={doc.id} className="truncate">• {doc.file_name}</li>
-                        ))}
-                        {documents.length > 3 && <li>• ...and {documents.length - 3} more</li>}
-                      </ul>
-                    ) : (
-                      <span className="italic">No documents uploaded yet</span>
-                    )}
-                  </div>
+            {/* Current Evidence Summary - Documents Only */}
+            {documents.length > 0 && (
+              <div className="bg-green-50 rounded-lg p-4">
+                <h5 className="font-medium text-green-900 mb-2">📄 Documents ({documents.length})</h5>
+                <div className="text-sm text-green-700">
+                  <ul className="space-y-2">
+                    {documents.slice(0, 5).map(doc => (
+                      <li key={doc.id} className="flex items-center justify-between">
+                        <span className="truncate flex-1">• {doc.file_name}</span>
+                        <button
+                          onClick={() => handleDeleteEvidence(doc.id, doc.file_name)}
+                          disabled={deletingEvidence === doc.id}
+                          className="ml-2 text-red-500 hover:text-red-700 disabled:opacity-50 flex-shrink-0"
+                          title="Delete document"
+                        >
+                          {deletingEvidence === doc.id ? (
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500"></div>
+                          ) : (
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                    {documents.length > 5 && <li>• ...and {documents.length - 5} more</li>}
+                  </ul>
                 </div>
               </div>
             )}
@@ -326,18 +422,6 @@ const EvidenceSubmission: React.FC<EvidenceSubmissionProps> = ({
           <p className="text-green-700">
             Your evidence has been reviewed and approved. Great work completing this finding!
           </p>
-        </div>
-      )}
-
-      {/* Photos Section (always visible for review) */}
-      {photos.length > 0 && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <PhotoGallery
-            findingId={findingId}
-            canUpload={findingStatus === 'in_progress'}
-            showUploadButton={false} // We have our own upload interface above
-            maxPhotos={20}
-          />
         </div>
       )}
     </div>

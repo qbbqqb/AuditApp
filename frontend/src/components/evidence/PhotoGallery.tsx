@@ -1,6 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
+// Component to handle authenticated image loading
+interface AuthenticatedImageProps {
+  src: string;
+  alt: string;
+  className?: string;
+  token?: string;
+}
+
+const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, className, token }) => {
+  const [imageSrc, setImageSrc] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      if (!token) {
+        setError(true);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(src, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const imageUrl = URL.createObjectURL(blob);
+          setImageSrc(imageUrl);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadImage();
+
+    // Cleanup function to revoke object URL
+    return () => {
+      if (imageSrc) {
+        URL.revokeObjectURL(imageSrc);
+      }
+    };
+  }, [src, token]);
+
+  if (loading) {
+    return (
+      <div className={`${className} flex items-center justify-center bg-gray-200`}>
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !imageSrc) {
+    return (
+      <div className={`${className} flex items-center justify-center bg-gray-200`}>
+        <span className="text-gray-500 text-xs">Failed to load</span>
+      </div>
+    );
+  }
+
+  return <img src={imageSrc} alt={alt} className={className} />;
+};
+
 interface Photo {
   id: string;
   file_name: string;
@@ -18,37 +89,44 @@ interface Photo {
 
 interface PhotoGalleryProps {
   findingId: string;
-  canUpload?: boolean;
-  showUploadButton?: boolean;
-  maxPhotos?: number;
+  canDelete?: boolean;
+  refreshTrigger?: number;
 }
 
 const PhotoGallery: React.FC<PhotoGalleryProps> = ({ 
   findingId, 
-  canUpload = false, 
-  showUploadButton = true,
-  maxPhotos = 20
+  canDelete = false, 
+  refreshTrigger = 0
 }) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
-  const [dragActive, setDragActive] = useState(false);
+  const [deletingPhoto, setDeletingPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     loadPhotos();
   }, [findingId]);
 
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      loadPhotos();
+    }
+  }, [refreshTrigger]);
+
   const loadPhotos = async () => {
     try {
-      const token = localStorage.getItem('token');
+      if (!session?.access_token) {
+        console.error('No access token available');
+        return;
+      }
+
       const response = await fetch(
         `${process.env.REACT_APP_API_BASE_URL}/evidence/finding/${findingId}?type=photos`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${session.access_token}`,
           },
         }
       );
@@ -66,92 +144,51 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
     }
   };
 
-  const handleFileUpload = async (files: FileList) => {
-    if (!files.length || !canUpload) return;
-
-    // Check if adding these files would exceed the limit
-    if (photos.length + files.length > maxPhotos) {
-      setError(`Cannot upload more than ${maxPhotos} photos`);
+  const handleDeletePhoto = async (photoId: string) => {
+    if (!session?.access_token) {
+      setError('Authentication required. Please log in again.');
       return;
     }
 
-    setUploading(true);
+    if (!window.confirm('Are you sure you want to delete this photo? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingPhoto(photoId);
     setError('');
 
-    for (const file of Array.from(files)) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setError(`${file.name} is not a valid image file`);
-        continue;
-      }
-
-      // Validate file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        setError(`${file.name} is too large (max 10MB)`);
-        continue;
-      }
-
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('description', '');
-        formData.append('is_corrective_action', 'false');
-
-        const token = localStorage.getItem('token');
-        const response = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL}/evidence/finding/${findingId}`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-            body: formData,
-          }
-        );
-
-        const data = await response.json();
-        if (response.ok) {
-          // Add the new photo to the list
-          setPhotos(prev => [data.data, ...prev]);
-        } else {
-          setError(data.message || `Failed to upload ${file.name}`);
+    try {
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/evidence/${photoId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
         }
-      } catch (error) {
-        setError(`Network error uploading ${file.name}`);
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        // Remove the photo from the list
+        setPhotos(prev => prev.filter(photo => photo.id !== photoId));
+        // Close modal if this photo was selected
+        if (selectedPhoto?.id === photoId) {
+          setSelectedPhoto(null);
+        }
+      } else {
+        setError(data.message || 'Failed to delete photo');
       }
+    } catch (error) {
+      setError('Network error deleting photo');
+    } finally {
+      setDeletingPhoto(null);
     }
-
-    setUploading(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    if (e.dataTransfer.files) {
-      handleFileUpload(e.dataTransfer.files);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
   };
 
   const getPhotoUrl = (photo: Photo, thumbnail = true) => {
-    const token = localStorage.getItem('token');
-    const thumbnailParam = thumbnail && photo.thumbnail_path ? 'thumbnail=true' : '';
-    const tokenParam = token ? `token=${token}` : '';
-    
-    // Combine parameters properly
-    const params = [thumbnailParam, tokenParam].filter(Boolean).join('&');
-    const queryString = params ? `?${params}` : '';
-    
-    return `${process.env.REACT_APP_API_BASE_URL}/evidence/${photo.id}/file${queryString}`;
+    const thumbnailParam = thumbnail && photo.thumbnail_path ? '?thumbnail=true' : '';
+    return `${process.env.REACT_APP_API_BASE_URL}/evidence/${photo.id}/file${thumbnailParam}`;
   };
 
   const formatFileSize = (bytes: number) => {
@@ -182,25 +219,6 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         <h3 className="text-lg font-medium text-gray-900">
           Photos ({photos.length})
         </h3>
-        
-        {canUpload && showUploadButton && (
-          <div className="flex items-center space-x-2">
-            <input
-              type="file"
-              id="photo-upload"
-              multiple
-              accept="image/*"
-              onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
-              className="hidden"
-            />
-            <label
-              htmlFor="photo-upload"
-              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
-            >
-              📷 Add Photos
-            </label>
-          </div>
-        )}
       </div>
 
       {/* Error Message */}
@@ -210,63 +228,49 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         </div>
       )}
 
-      {/* Upload Area (drag and drop) */}
-      {canUpload && photos.length < maxPhotos && (
-        <div
-          className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-            dragActive
-              ? 'border-blue-400 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400'
-          }`}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-        >
-          <div className="space-y-2">
-            <div className="text-gray-400">
-              <svg className="mx-auto h-12 w-12" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <div className="text-sm text-gray-600">
-              {uploading ? (
-                <span className="text-blue-600">Uploading photos...</span>
-              ) : (
-                <>
-                  <span className="font-medium">Drop photos here</span> or{' '}
-                  <label htmlFor="photo-upload" className="text-blue-600 hover:text-blue-500 cursor-pointer">
-                    browse
-                  </label>
-                </>
-              )}
-            </div>
-            <div className="text-xs text-gray-500">
-              PNG, JPG, GIF up to 10MB each (max {maxPhotos} photos)
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Photo Grid */}
       {photos.length > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {photos.map((photo) => (
             <div
               key={photo.id}
-              className="group relative bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setSelectedPhoto(photo)}
+              className="group relative bg-gray-100 rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
             >
-              <div className="aspect-square">
-                <img
+              <div 
+                className="aspect-square cursor-pointer"
+                onClick={() => setSelectedPhoto(photo)}
+              >
+                <AuthenticatedImage
                   src={getPhotoUrl(photo, true)}
                   alt={photo.description || photo.file_name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                  loading="lazy"
+                  token={session?.access_token}
                 />
               </div>
               
+              {/* Delete button */}
+              {canDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeletePhoto(photo.id);
+                  }}
+                  disabled={deletingPhoto === photo.id}
+                  className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 disabled:opacity-50"
+                  title="Delete photo"
+                >
+                  {deletingPhoto === photo.id ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                </button>
+              )}
+              
               {/* Overlay with info */}
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-200">
+              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-200 pointer-events-none">
                 <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black to-transparent">
                   <div className="text-white text-xs truncate">
                     {photo.description || photo.file_name}
@@ -280,9 +284,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         <div className="text-center text-gray-500 py-8">
           <div className="text-4xl mb-2">📷</div>
           <div>No photos yet</div>
-          {canUpload && (
-            <div className="text-sm">Add photos to document this observation</div>
-          )}
+          <div className="text-sm">Photos will appear here when uploaded</div>
         </div>
       )}
 
@@ -304,23 +306,41 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({
                     by {selectedPhoto.uploaded_by_profile.first_name} {selectedPhoto.uploaded_by_profile.last_name}
                   </div>
                 </div>
-                <button
-                  onClick={() => setSelectedPhoto(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="flex items-center space-x-2">
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDeletePhoto(selectedPhoto.id)}
+                      disabled={deletingPhoto === selectedPhoto.id}
+                      className="text-red-500 hover:text-red-700 disabled:opacity-50"
+                      title="Delete photo"
+                    >
+                      {deletingPhoto === selectedPhoto.id ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500"></div>
+                      ) : (
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedPhoto(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
             
             <div className="p-4">
-              <img
+              <AuthenticatedImage
                 src={getPhotoUrl(selectedPhoto, false)}
                 alt={selectedPhoto.description || selectedPhoto.file_name}
                 className="max-w-full max-h-96 mx-auto"
-                onClick={(e) => e.stopPropagation()}
+                token={session?.access_token}
               />
             </div>
           </div>

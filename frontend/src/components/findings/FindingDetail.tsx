@@ -5,6 +5,77 @@ import EvidenceSubmission from '../evidence/EvidenceSubmission';
 import { FindingsService } from '../../services/findingsService';
 import type { Finding } from '../../types/findings';
 
+// Component to handle authenticated image loading
+interface AuthenticatedImageProps {
+  src: string;
+  alt: string;
+  className?: string;
+  token?: string;
+}
+
+const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, className, token }) => {
+  const [imageSrc, setImageSrc] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const loadImage = async () => {
+      if (!token) {
+        setError(true);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(src, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const imageUrl = URL.createObjectURL(blob);
+          setImageSrc(imageUrl);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadImage();
+
+    // Cleanup function to revoke object URL
+    return () => {
+      if (imageSrc) {
+        URL.revokeObjectURL(imageSrc);
+      }
+    };
+  }, [src, token]);
+
+  if (loading) {
+    return (
+      <div className={`${className} flex items-center justify-center bg-gray-200`}>
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-600"></div>
+      </div>
+    );
+  }
+
+  if (error || !imageSrc) {
+    return (
+      <div className={`${className} flex items-center justify-center bg-gray-200`}>
+        <span className="text-gray-500 text-xs">Failed to load</span>
+      </div>
+    );
+  }
+
+  return <img src={imageSrc} alt={alt} className={className} />;
+};
+
 interface Comment {
   id: string;
   content: string;
@@ -36,7 +107,7 @@ interface Evidence {
 const FindingDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [finding, setFinding] = useState<Finding | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -60,14 +131,31 @@ const FindingDetail: React.FC = () => {
   };
 
   const updateStatus = async (newStatus: string) => {
-    if (!finding) return;
+    if (!finding || !session?.access_token) return;
 
     setUpdating(true);
     try {
-      await FindingsService.updateFinding(id!, {
-        status: newStatus as Finding['status'],
-      });
-      setFinding(prev => prev ? { ...prev, status: newStatus as Finding['status'] } : null);
+      // Use backend API instead of direct Supabase call
+      const response = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL}/findings/${id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: newStatus,
+          }),
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        setFinding(prev => prev ? { ...prev, status: newStatus as Finding['status'] } : null);
+      } else {
+        setError(data.message || 'Failed to update status');
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to update status');
     } finally {
@@ -170,12 +258,16 @@ const FindingDetail: React.FC = () => {
 
   const downloadEvidence = async (evidenceId: string, fileName: string) => {
     try {
-      const token = localStorage.getItem('token');
+      if (!session?.access_token) {
+        console.error('No access token available');
+        return;
+      }
+
       const response = await fetch(
         `${process.env.REACT_APP_API_BASE_URL}/evidence/${evidenceId}/download`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${session.access_token}`,
           },
         }
       );
@@ -411,14 +503,11 @@ const FindingDetail: React.FC = () => {
                         {photos.map((photo) => (
                           <div key={photo.id} className="relative group">
                             <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                              <img
-                                src={`${process.env.REACT_APP_API_BASE_URL}/evidence/${photo.id}/file?thumbnail=true&token=${localStorage.getItem('token')}`}
+                              <AuthenticatedImage
+                                src={`${process.env.REACT_APP_API_BASE_URL}/evidence/${photo.id}/file?thumbnail=true`}
                                 alt={photo.file_name || 'Evidence photo'}
                                 className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  (e.currentTarget.nextElementSibling as HTMLElement)!.style.display = 'flex';
-                                }}
+                                token={session?.access_token}
                               />
                               <div className="hidden w-full h-full items-center justify-center bg-gray-200">
                                 <span className="text-gray-500 text-xs">No preview</span>
