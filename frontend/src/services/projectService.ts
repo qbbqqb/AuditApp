@@ -62,28 +62,8 @@ export const createProject = async (projectData: Omit<Project, 'id' | 'created_a
  */
 export const getAllProjects = async (): Promise<Project[]> => {
   try {
-    // Get user info
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    const userId = session?.user?.id || user?.id;
-    
-    // For admin users, try the user projects function first
-    if (userId) {
-      try {
-        const { data: userProjectsData, error: userProjectsError } = await supabase.rpc('get_user_projects', {
-          user_id: userId
-        });
-        
-        if (!userProjectsError && userProjectsData) {
-          return userProjectsData || [];
-        }
-      } catch (funcErr) {
-        // Continue to fallback
-      }
-    }
-     
-    // Fallback to direct query
+    // For regular users, this will be filtered by RLS policies
+    // Only admins will see all projects, others will see only assigned projects
     const { data, error } = await supabase
       .from('projects')
       .select('*')

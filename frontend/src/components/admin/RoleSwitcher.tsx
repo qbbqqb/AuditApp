@@ -70,11 +70,30 @@ const RoleSwitcher: React.FC = () => {
   const handleRoleSwitch = async (testUser: TestUser) => {
     setIsLoading(true);
     try {
+      console.log(`🔄 Switching to user: ${testUser.email}`);
+      
+      // Sign out current user first
       await signOut();
-      await signIn(testUser.email, testUser.password);
+      console.log('✅ Signed out current user');
+      
+      // Wait a moment for the sign out to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Sign in as new user
+      console.log(`🔐 Signing in as: ${testUser.email}`);
+      const result = await signIn(testUser.email, testUser.password);
+      
+      if (result.error) {
+        console.error('❌ Sign in error:', result.error);
+        throw new Error(result.error.message || 'Authentication failed');
+      }
+      
+      console.log('✅ Successfully signed in');
       setIsOpen(false);
     } catch (error) {
-      console.error('Role switch failed:', error);
+      console.error('❌ Role switch failed:', error);
+      // Show user-friendly error message
+      alert(`Failed to switch to ${testUser.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }

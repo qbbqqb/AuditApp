@@ -23,7 +23,7 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://your-frontend-domain.com'] 
-    : ['http://localhost:3000', 'http://192.168.0.19:3000'],
+    : ['http://localhost:3000', 'http://192.168.0.19:3000', 'http://localhost:3002', 'http://192.168.0.19:3002'],
   credentials: true,
 }));
 app.use(morgan('combined'));

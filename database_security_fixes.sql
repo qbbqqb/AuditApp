@@ -481,6 +481,8 @@ $$ LANGUAGE plpgsql SET search_path = public;
 
 -- Drop existing policies that have performance issues
 DROP POLICY IF EXISTS "Users can view projects they're assigned to" ON projects;
+DROP POLICY IF EXISTS "Users can read assigned projects" ON projects;
+DROP POLICY IF EXISTS "Admins have full access to projects" ON projects;
 DROP POLICY IF EXISTS "Users can view findings in their projects" ON findings;
 DROP POLICY IF EXISTS "Client safety managers can create findings" ON findings;
 DROP POLICY IF EXISTS "Users can update findings they created or are assigned to" ON findings;
@@ -492,11 +494,47 @@ DROP POLICY IF EXISTS "Users can view their own notifications" ON notifications;
 DROP POLICY IF EXISTS "Users can update their own notifications" ON notifications;
 
 -- Create optimized RLS policies using subqueries to avoid re-evaluation
+
+-- Projects RLS Policies - Fixed to properly restrict access
+CREATE POLICY "Admins can access all projects" ON projects
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = (SELECT auth.uid()) AND role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = (SELECT auth.uid()) AND role = 'admin'
+    )
+  );
+
 CREATE POLICY "Users can view projects they're assigned to" ON projects
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM project_assignments 
       WHERE project_id = projects.id AND user_id = (SELECT auth.uid())
+    )
+  );
+
+CREATE POLICY "Client managers can create projects" ON projects
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = (SELECT auth.uid()) 
+      AND role IN ('client_safety_manager', 'client_project_manager')
+      AND company = projects.client_company
+    )
+  );
+
+CREATE POLICY "Client managers can update their company projects" ON projects
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE id = (SELECT auth.uid()) 
+      AND role IN ('client_safety_manager', 'client_project_manager')
+      AND company = projects.client_company
     )
   );
 
