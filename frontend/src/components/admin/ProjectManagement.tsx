@@ -49,22 +49,22 @@ const ProjectManagement: React.FC = () => {
   });
 
   useEffect(() => {
-    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'client_safety_manager')) {
+    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'client_safety_manager' || currentUser.role === 'gc_project_manager')) {
       loadProjects();
     } else {
       setLoading(false);
     }
   }, [currentUser]);
 
-  // Check if user is admin or client safety manager after hooks are called
-  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'client_safety_manager')) {
+  // Check if user has access to project management
+  if (!currentUser || !['admin', 'client_safety_manager', 'gc_project_manager'].includes(currentUser.role)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-md">
           <div className="text-center">
             <h3 className="text-lg font-medium text-gray-900">Access Denied</h3>
             <p className="mt-2 text-sm text-gray-500">
-              You must be an administrator or client safety manager to access project management.
+              You must be an administrator, client safety manager, or project manager to access project management.
             </p>
           </div>
         </div>

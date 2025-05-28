@@ -23,11 +23,11 @@ export const createProject = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Only client safety managers and project managers can create projects
-    if (!['client_safety_manager', 'client_project_manager'].includes(req.user.role)) {
+    // Only client safety managers, project managers, and GC project managers can create projects
+    if (!['client_safety_manager', 'client_project_manager', 'gc_project_manager'].includes(req.user.role)) {
       res.status(403).json({
         success: false,
-        message: 'Only Client Safety Managers and Project Managers can create projects'
+        message: 'Only Client Safety Managers, Project Managers, and GC Project Managers can create projects'
       });
       return;
     }
@@ -465,11 +465,11 @@ export const assignUserToProject = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // Only client managers can assign users to projects
-    if (!['client_safety_manager', 'client_project_manager'].includes(req.user.role)) {
+    // Only client managers and GC project managers can assign users to projects
+    if (!['client_safety_manager', 'client_project_manager', 'gc_project_manager'].includes(req.user.role)) {
       res.status(403).json({
         success: false,
-        message: 'Only Client Safety Managers and Project Managers can assign users to projects'
+        message: 'Only Client Safety Managers, Project Managers, and GC Project Managers can assign users to projects'
       });
       return;
     }
