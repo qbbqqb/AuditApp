@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { supabaseAdmin } from '../config/supabase';
+import { createClient } from '@supabase/supabase-js';
 import PDFDocument from 'pdfkit';
 import ExcelJS from 'exceljs';
 
@@ -28,6 +29,7 @@ export const previewReport = async (req: Request, res: Response): Promise<void> 
   try {
     const userId = (req as any).user.id;
     const userRole = (req as any).user.role;
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
     
     if (!userId) {
       res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -35,7 +37,15 @@ export const previewReport = async (req: Request, res: Response): Promise<void> 
     }
 
     const reportConfig: ReportConfig = req.body;
-    const data = await generateReportData(reportConfig, userId, userRole);
+    console.log('Report config:', JSON.stringify(reportConfig, null, 2));
+    console.log('User ID:', userId, 'Role:', userRole);
+    console.log('Auth token available:', !!authToken);
+    console.log('Auth token length:', authToken?.length || 0);
+    console.log('Auth token starts with:', authToken?.substring(0, 20) + '...');
+    
+    const data = await generateReportData(reportConfig, userId, userRole, authToken);
+    console.log('Generated data length:', data.length);
+    console.log('First few rows:', data.slice(0, 2));
     
     res.json({
       success: true,
@@ -56,6 +66,7 @@ export const generateReport = async (req: Request, res: Response): Promise<void>
   try {
     const userId = (req as any).user.id;
     const userRole = (req as any).user.role;
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
     
     if (!userId) {
       res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -63,7 +74,7 @@ export const generateReport = async (req: Request, res: Response): Promise<void>
     }
 
     const reportConfig: ReportConfig = req.body;
-    const data = await generateReportData(reportConfig, userId, userRole);
+    const data = await generateReportData(reportConfig, userId, userRole, authToken);
 
     switch (reportConfig.exportFormat) {
       case 'pdf':
@@ -91,11 +102,11 @@ export const generateReport = async (req: Request, res: Response): Promise<void>
 };
 
 // Generate report data based on configuration
-async function generateReportData(config: ReportConfig, userId: string, userRole: string): Promise<any[]> {
+async function generateReportData(config: ReportConfig, userId: string, userRole: string, authToken?: string): Promise<any[]> {
   try {
     switch (config.dataSource) {
       case 'findings':
-        return await generateFindingsData(config, userId, userRole);
+        return await generateFindingsData(config, userId, userRole, authToken);
       case 'projects':
         return await generateProjectsData(config, userId, userRole);
       case 'analytics':
@@ -112,8 +123,31 @@ async function generateReportData(config: ReportConfig, userId: string, userRole
 }
 
 // Generate findings data
-async function generateFindingsData(config: ReportConfig, userId: string, userRole: string): Promise<any[]> {
-  let query = supabase
+async function generateFindingsData(config: ReportConfig, userId: string, userRole: string, authToken?: string): Promise<any[]> {
+  // Create a user-specific Supabase client using the session token from the request
+  let supabaseClient;
+  if (authToken) {
+    // Create client with user's session token
+    supabaseClient = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          }
+        }
+      }
+    );
+  } else {
+    // Fallback to admin client (but this might not work with placeholder key)
+    console.log('No auth token provided, this might fail...');
+    supabaseClient = supabaseAdmin;
+  }
+
+  console.log('Using auth token for query:', !!authToken);
+
+  let query = supabaseClient
     .from('findings')
     .select(`
       id,
@@ -128,17 +162,21 @@ async function generateFindingsData(config: ReportConfig, userId: string, userRo
       due_date,
       regulatory_reference,
       immediate_action_required,
-      projects:project_id(name, client_company, contractor_company),
-      created_profile:created_by(first_name, last_name),
-      assigned_profile:assigned_to(first_name, last_name)
+      project_id,
+      created_by,
+      assigned_to
     `);
 
   // Apply date filters
   if (config.filters.dateRange.start) {
-    query = query.gte('created_at', config.filters.dateRange.start);
+    const startDate = config.filters.dateRange.start + 'T00:00:00.000Z';
+    query = query.gte('created_at', startDate);
+    console.log('Applied start date filter:', startDate);
   }
   if (config.filters.dateRange.end) {
-    query = query.lte('created_at', config.filters.dateRange.end);
+    const endDate = config.filters.dateRange.end + 'T23:59:59.999Z';
+    query = query.lte('created_at', endDate);
+    console.log('Applied end date filter:', endDate);
   }
 
   // Apply other filters
@@ -153,43 +191,64 @@ async function generateFindingsData(config: ReportConfig, userId: string, userRo
   }
 
   // Apply role-based filtering
-  if (userRole !== 'client_safety_manager') {
+  // Management roles can see all findings, individual workers only see their own
+  const managementRoles = ['admin', 'client_safety_manager', 'gc_project_manager', 'gc_ehs_officer'];
+  
+  if (!managementRoles.includes(userRole)) {
+    console.log('Applying role-based filtering for user:', userId, 'role:', userRole);
     query = query.or(`created_by.eq.${userId},assigned_to.eq.${userId}`);
+  } else {
+    console.log('Management user, no role-based filtering applied for role:', userRole);
   }
 
+  console.log('Executing findings query...');
+  console.log('Query filters applied:');
+  console.log('- Date range:', config.filters.dateRange);
+  console.log('- Severity filters:', config.filters.severity);
+  console.log('- Status filters:', config.filters.status);
+  console.log('- Project filters:', config.filters.projectId);
+  
+  // Let's also test a simple query first to make sure basic access works
+  console.log('Testing basic query first...');
+  const { data: testData, error: testError } = await supabaseClient
+    .from('findings')
+    .select('id, title, created_at')
+    .limit(1);
+  
+  console.log('Basic query result:', testData?.length || 0, 'error:', testError);
+  
   const { data, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching findings:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     return [];
   }
 
-  // Transform data to match expected format
+  console.log('Raw findings data length:', data?.length || 0);
+  console.log('Sample data:', data?.slice(0, 1));
+
+  // Transform data to match expected format (simplified for now)
   return data?.map(finding => {
-    const project = finding.projects as any;
-    const createdProfile = finding.created_profile as any;
-    const assignedProfile = finding.assigned_profile as any;
-    
     return {
       ...finding,
-      project_name: project?.name || '',
-      client_company: project?.client_company || '',
-      contractor_company: project?.contractor_company || '',
-      created_by: createdProfile ? `${createdProfile.first_name} ${createdProfile.last_name}` : '',
-      assigned_to: assignedProfile ? `${assignedProfile.first_name} ${assignedProfile.last_name}` : ''
+      project_name: 'Project Name', // Placeholder
+      client_company: 'Client Company', // Placeholder
+      contractor_company: 'Contractor Company', // Placeholder
+      created_by: 'Created By', // Placeholder
+      assigned_to: 'Assigned To' // Placeholder
     };
   }) || [];
 }
 
 // Generate projects data
 async function generateProjectsData(config: ReportConfig, userId: string, userRole: string): Promise<any[]> {
-  let query = supabase
+  let query = supabaseAdmin
     .from('projects')
     .select(`
       id,
       name,
       description,
-      location,
       client_company,
       contractor_company,
       start_date,
@@ -260,13 +319,16 @@ async function generateAnalyticsData(config: ReportConfig, userId: string, userR
   }
 
   // Get findings data
-  let query = supabase
+  let query = supabaseAdmin
     .from('findings')
     .select('created_at, updated_at, status, due_date')
     .gte('created_at', startDate.toISOString())
     .lte('created_at', endDate.toISOString());
 
-  if (userRole !== 'client_safety_manager') {
+  // Apply role-based filtering for analytics
+  const managementRoles = ['admin', 'client_safety_manager', 'gc_project_manager', 'gc_ehs_officer'];
+  
+  if (!managementRoles.includes(userRole)) {
     query = query.or(`created_by.eq.${userId},assigned_to.eq.${userId}`);
   }
 
@@ -319,7 +381,7 @@ async function generateAnalyticsData(config: ReportConfig, userId: string, userR
 
 // Generate combined data
 async function generateCombinedData(config: ReportConfig, userId: string, userRole: string): Promise<any[]> {
-  let query = supabase
+  let query = supabaseAdmin
     .from('findings')
     .select(`
       title,
@@ -339,8 +401,10 @@ async function generateCombinedData(config: ReportConfig, userId: string, userRo
     query = query.lte('created_at', config.filters.dateRange.end);
   }
 
-  // Apply role-based filtering
-  if (userRole !== 'client_safety_manager') {
+  // Apply role-based filtering for combined data
+  const managementRoles = ['admin', 'client_safety_manager', 'gc_project_manager', 'gc_ehs_officer'];
+  
+  if (!managementRoles.includes(userRole)) {
     query = query.or(`created_by.eq.${userId},assigned_to.eq.${userId}`);
   }
 

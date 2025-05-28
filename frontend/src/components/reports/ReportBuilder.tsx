@@ -2,6 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
+import {
+  ChartBarIcon,
+  DocumentArrowDownIcon,
+  EyeIcon,
+  CalendarIcon,
+  FunnelIcon,
+  TableCellsIcon,
+  ChartPieIcon,
+  PresentationChartLineIcon,
+  ChartBarSquareIcon
+} from '@heroicons/react/24/outline';
 
 interface ReportConfig {
   id?: string;
@@ -45,14 +56,14 @@ interface User {
 }
 
 const ReportBuilder: React.FC = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [reportConfig, setReportConfig] = useState<ReportConfig>({
     name: '',
     description: '',
     dataSource: 'findings',
     filters: {
       dateRange: {
-        start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        start: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         end: new Date().toISOString().split('T')[0]
       },
       severity: [],
@@ -175,22 +186,60 @@ const ReportBuilder: React.FC = () => {
   };
 
   const generatePreview = async () => {
+    if (!session?.access_token) {
+      console.error('No authentication token available');
+      return;
+    }
+
+    console.log('Current user:', user);
+    console.log('Report config being sent:', reportConfig);
+
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/reports/preview`, {
+      let currentSession = session;
+      
+      // Try the request with current token
+      let response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/reports/preview`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${currentSession.access_token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(reportConfig)
       });
 
+      // If unauthorized, try to refresh the session
+      if (response.status === 401) {
+        console.log('Token expired, refreshing session...');
+        const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+        
+        if (error || !refreshedSession) {
+          console.error('Failed to refresh session:', error);
+          // Redirect to login or show error
+          return;
+        }
+        
+        currentSession = refreshedSession;
+        
+        // Retry the request with new token
+        response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/reports/preview`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentSession.access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(reportConfig)
+        });
+      }
+
       if (response.ok) {
         const data = await response.json();
-        setPreviewData(data.data);
+        console.log('Preview response data:', data);
+        setPreviewData(data.data || []);
         setShowPreview(true);
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to generate preview:', response.status, response.statusText, errorText);
       }
     } catch (error) {
       console.error('Error generating preview:', error);
@@ -200,17 +249,47 @@ const ReportBuilder: React.FC = () => {
   };
 
   const generateReport = async () => {
+    if (!session?.access_token) {
+      console.error('No authentication token available');
+      return;
+    }
+
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/reports/generate`, {
+      let currentSession = session;
+      
+      // Try the request with current token
+      let response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/reports/generate`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${currentSession.access_token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(reportConfig)
       });
+
+      // If unauthorized, try to refresh the session
+      if (response.status === 401) {
+        console.log('Token expired, refreshing session...');
+        const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+        
+        if (error || !refreshedSession) {
+          console.error('Failed to refresh session:', error);
+          return;
+        }
+        
+        currentSession = refreshedSession;
+        
+        // Retry the request with new token
+        response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/reports/generate`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentSession.access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(reportConfig)
+        });
+      }
 
       if (response.ok) {
         const blob = await response.blob();
@@ -222,6 +301,8 @@ const ReportBuilder: React.FC = () => {
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
+      } else {
+        console.error('Failed to generate report:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error generating report:', error);
