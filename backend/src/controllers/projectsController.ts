@@ -331,29 +331,30 @@ export const updateProject = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Only client managers can update projects
-    if (!['client_safety_manager', 'client_project_manager'].includes(req.user.role)) {
-      res.status(403).json({
-        success: false,
-        message: 'Only Client Safety Managers and Project Managers can update projects'
-      });
-      return;
-    }
-
     const { id } = req.params;
-    const updateData = req.body;
+    const updates = req.body;
+
+    // Remove fields that shouldn't be updated directly
+    delete updates.id;
+    delete updates.created_at;
+    delete updates.updated_at;
 
     const { data: project, error } = await supabaseAdmin
       .from('projects')
-      .update({
-        ...updateData,
-        updated_at: new Date().toISOString()
-      })
+      .update(updates)
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
+      if (error.code === 'PGRST116') {
+        res.status(404).json({
+          success: false,
+          message: 'Project not found'
+        });
+        return;
+      }
+
       res.status(400).json({
         success: false,
         message: 'Failed to update project',
@@ -371,6 +372,82 @@ export const updateProject = async (req: Request, res: Response): Promise<void> 
     res.json(response);
   } catch (error) {
     console.error('Update project error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+export const deleteProject = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
+      return;
+    }
+
+    // Only client safety managers can delete projects
+    if (req.user.role !== 'client_safety_manager') {
+      res.status(403).json({
+        success: false,
+        message: 'Only Client Safety Managers can delete projects'
+      });
+      return;
+    }
+
+    const { id } = req.params;
+
+    // Check if project exists
+    const { data: existingProject, error: fetchError } = await supabaseAdmin
+      .from('projects')
+      .select('id, name')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      if (fetchError.code === 'PGRST116') {
+        res.status(404).json({
+          success: false,
+          message: 'Project not found'
+        });
+        return;
+      }
+
+      res.status(400).json({
+        success: false,
+        message: 'Failed to fetch project',
+        error: fetchError.message
+      });
+      return;
+    }
+
+    // Delete the project (cascade deletes should handle related records)
+    const { error: deleteError } = await supabaseAdmin
+      .from('projects')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      res.status(400).json({
+        success: false,
+        message: 'Failed to delete project',
+        error: deleteError.message
+      });
+      return;
+    }
+
+    const response: ApiResponse<null> = {
+      success: true,
+      data: null,
+      message: `Project "${existingProject.name}" deleted successfully`
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Delete project error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'

@@ -34,8 +34,8 @@
     "zod": "^3.25.23"
   },
   "scripts": {
-    "dev": "react-scripts start",
-    "start": "react-scripts start",
+    "dev": "REACT_APP_API_BASE_URL=http://localhost:3001/api REACT_APP_SUPABASE_URL=https://itowglseznuietphtirc.supabase.co REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b3dnbHNlem51aWV0cGh0aXJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwMDk5OTUsImV4cCI6MjA2MzU4NTk5NX0.Z2pf7boDaeJtGci8CbUxk5cxFUiijgV6z3xxMwr9lpA react-scripts start",
+    "start": "REACT_APP_API_BASE_URL=http://localhost:3001/api REACT_APP_SUPABASE_URL=https://itowglseznuietphtirc.supabase.co REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b3dnbHNlem51aWV0cGh0aXJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwMDk5OTUsImV4cCI6MjA2MzU4NTk5NX0.Z2pf7boDaeJtGci8CbUxk5cxFUiijgV6z3xxMwr9lpA react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

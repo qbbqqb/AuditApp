@@ -4,6 +4,7 @@ import {
   getProjects,
   getProject,
   updateProject,
+  deleteProject,
   assignUserToProject
 } from '../controllers/projectsController';
 import { authenticateToken, requireRole } from '../middleware/auth';
@@ -29,6 +30,12 @@ router.post('/',
 router.put('/:id', 
   requireRole(['client_safety_manager', 'client_project_manager']), 
   updateProject
+);
+
+// DELETE /api/projects/:id - Delete project (Client safety managers only)
+router.delete('/:id', 
+  requireRole(['client_safety_manager']), 
+  deleteProject
 );
 
 // POST /api/projects/:id/assign - Assign user to project (Client managers only)

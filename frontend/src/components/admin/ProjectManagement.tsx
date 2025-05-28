@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
-import { getAllProjects, createProject, updateProject } from '../../services/projectService';
+import { getAllProjects, createProject, updateProject, deleteProject } from '../../services/projectService';
 
 interface Project {
   id: string;
@@ -31,7 +31,9 @@ const ProjectManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,22 +49,22 @@ const ProjectManagement: React.FC = () => {
   });
 
   useEffect(() => {
-    if (currentUser && currentUser.role === 'admin') {
+    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'client_safety_manager')) {
       loadProjects();
     } else {
       setLoading(false);
     }
   }, [currentUser]);
 
-  // Check if user is admin after hooks are called
-  if (!currentUser || currentUser.role !== 'admin') {
+  // Check if user is admin or client safety manager after hooks are called
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'client_safety_manager')) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white p-8 rounded-lg shadow-md">
           <div className="text-center">
             <h3 className="text-lg font-medium text-gray-900">Access Denied</h3>
             <p className="mt-2 text-sm text-gray-500">
-              You must be an administrator to access project management.
+              You must be an administrator or client safety manager to access project management.
             </p>
           </div>
         </div>
@@ -143,6 +145,24 @@ const ProjectManagement: React.FC = () => {
     } catch (error) {
       setError('Failed to update project status');
       console.error('Error updating project status:', error);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      setDeleting(true);
+      setError('');
+      setSuccess('');
+      
+      await deleteProject(projectId);
+      setSuccess('Project deleted successfully');
+      setDeletingProject(null);
+      await loadProjects();
+    } catch (error) {
+      setError('Failed to delete project');
+      console.error('Error deleting project:', error);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -421,16 +441,41 @@ const ProjectManagement: React.FC = () => {
                         <div className="flex items-center justify-end space-x-2">
                           <button
                             onClick={() => setEditingProject(project)}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                           >
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
                             Edit
                           </button>
                           <button
                             onClick={() => handleToggleProjectStatus(project.id, project.is_active)}
-                            className={project.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}
+                            className={`inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                              project.is_active 
+                                ? 'text-orange-700 bg-orange-100 hover:bg-orange-200 focus:ring-orange-500' 
+                                : 'text-green-700 bg-green-100 hover:bg-green-200 focus:ring-green-500'
+                            }`}
                           >
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              {project.is_active ? (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8l4 4L19 2" />
+                              ) : (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              )}
+                            </svg>
                             {project.is_active ? 'Archive' : 'Activate'}
                           </button>
+                          {currentUser?.role === 'client_safety_manager' && (
+                            <button
+                              onClick={() => setDeletingProject(project)}
+                              className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                            >
+                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -694,6 +739,83 @@ const ProjectManagement: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Project Modal */}
+      {deletingProject && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 lg:w-1/3 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Delete Project</h3>
+                <button
+                  onClick={() => setDeletingProject(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                  disabled={deleting}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <div className="flex items-center mb-3">
+                  <svg className="w-8 h-8 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900">Are you sure?</h4>
+                    <p className="text-sm text-gray-500">This action cannot be undone.</p>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 p-3 rounded-md">
+                  <p className="text-sm font-medium text-gray-900 mb-1">Project: {deletingProject.name}</p>
+                  <p className="text-sm text-gray-600">Client: {deletingProject.client_company}</p>
+                  <p className="text-sm text-gray-600">Contractor: {deletingProject.contractor_company}</p>
+                </div>
+                
+                <p className="text-sm text-gray-500 mt-3">
+                  Deleting this project will permanently remove all associated data including findings, evidence, and assignments.
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setDeletingProject(null)}
+                  disabled={deleting}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (deletingProject) {
+                      handleDeleteProject(deletingProject.id);
+                    }
+                  }}
+                  disabled={deleting}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleting ? (
+                    <div className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Deleting...
+                    </div>
+                  ) : (
+                    'Delete Project'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

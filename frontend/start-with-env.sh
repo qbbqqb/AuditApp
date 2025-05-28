@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Set environment variables for React app
+export REACT_APP_SUPABASE_URL=https://itowglseznuietphtirc.supabase.co
+export REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b3dnbHNlem51aWV0cGh0aXJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI2NTU5NzQsImV4cCI6MjA0ODIzMTk3NH0.YhNKBJgfqgx2bJVOJWnKZqJvQGJJYhNKBJgfqgx2bJV
+export REACT_APP_API_BASE_URL=http://localhost:3001/api
+export REACT_APP_BACKEND_URL=http://localhost:3001
+
+# Start the React development server
+npm start 
