@@ -20,27 +20,27 @@ router.get('/', getProjects);
 // GET /api/projects/:id - Get specific project
 router.get('/:id', getProject);
 
-// POST /api/projects - Create new project (Client managers and GC project managers)
+// POST /api/projects - Create new project (Admin, Client managers and GC project managers)
 router.post('/', 
-  requireRole(['client_safety_manager', 'client_project_manager', 'gc_project_manager']), 
+  requireRole(['admin', 'client_safety_manager', 'client_project_manager', 'gc_project_manager']), 
   createProject
 );
 
-// PUT /api/projects/:id - Update project (Client managers and GC project managers)
+// PUT /api/projects/:id - Update project (Admin, Client managers and GC project managers)
 router.put('/:id', 
-  requireRole(['client_safety_manager', 'client_project_manager', 'gc_project_manager']), 
+  requireRole(['admin', 'client_safety_manager', 'client_project_manager', 'gc_project_manager']), 
   updateProject
 );
 
-// DELETE /api/projects/:id - Delete project (Client safety managers only)
+// DELETE /api/projects/:id - Delete project (Admin and Client safety managers)
 router.delete('/:id', 
-  requireRole(['client_safety_manager']), 
+  requireRole(['admin', 'client_safety_manager']), 
   deleteProject
 );
 
-// POST /api/projects/:id/assign - Assign user to project (Client managers and GC project managers)
+// POST /api/projects/:id/assign - Assign user to project (Admin, Client managers and GC project managers)
 router.post('/:id/assign', 
-  requireRole(['client_safety_manager', 'client_project_manager', 'gc_project_manager']), 
+  requireRole(['admin', 'client_safety_manager', 'client_project_manager', 'gc_project_manager']), 
   assignUserToProject
 );
 

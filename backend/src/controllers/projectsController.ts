@@ -24,10 +24,10 @@ export const createProject = async (req: Request, res: Response): Promise<void> 
     }
 
     // Only client safety managers, project managers, and GC project managers can create projects
-    if (!['client_safety_manager', 'client_project_manager', 'gc_project_manager'].includes(req.user.role)) {
+    if (!['admin', 'client_safety_manager', 'client_project_manager', 'gc_project_manager'].includes(req.user.role)) {
       res.status(403).json({
         success: false,
-        message: 'Only Client Safety Managers, Project Managers, and GC Project Managers can create projects'
+        message: 'Only Administrators, Client Safety Managers, Project Managers, and GC Project Managers can create projects'
       });
       return;
     }
@@ -389,11 +389,11 @@ export const deleteProject = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Only client safety managers can delete projects
-    if (req.user.role !== 'client_safety_manager') {
+    // Only admin and client safety managers can delete projects
+    if (!['admin', 'client_safety_manager'].includes(req.user.role)) {
       res.status(403).json({
         success: false,
-        message: 'Only Client Safety Managers can delete projects'
+        message: 'Only Administrators and Client Safety Managers can delete projects'
       });
       return;
     }
@@ -466,10 +466,10 @@ export const assignUserToProject = async (req: Request, res: Response): Promise<
     }
 
     // Only client managers and GC project managers can assign users to projects
-    if (!['client_safety_manager', 'client_project_manager', 'gc_project_manager'].includes(req.user.role)) {
+    if (!['admin', 'client_safety_manager', 'client_project_manager', 'gc_project_manager'].includes(req.user.role)) {
       res.status(403).json({
         success: false,
-        message: 'Only Client Safety Managers, Project Managers, and GC Project Managers can assign users to projects'
+        message: 'Only Administrators, Client Safety Managers, Project Managers, and GC Project Managers can assign users to projects'
       });
       return;
     }

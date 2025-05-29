@@ -41,7 +41,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         email: 'admin@example.com',
         first_name: 'Admin',
         last_name: 'User',
-        role: 'CLIENT_SAFETY_MANAGER',
+        role: 'admin',
         company: 'Development Company',
         phone: '+1234567890',
         created_at: new Date().toISOString(),

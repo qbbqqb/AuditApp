@@ -1,7 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-
 import { getAllProjects, createProject, updateProject, deleteProject } from '../../services/projectService';
+
+// Import new UI components
+import { 
+  Card, 
+  CardHeader, 
+  CardBody, 
+  Button, 
+  Modal, 
+  ModalBody, 
+  ModalFooter,
+  SkeletonList, 
+  SkeletonTable,
+  StatusIndicator,
+  SeverityIndicator 
+} from '../ui';
 
 interface Project {
   id: string;
@@ -48,6 +62,10 @@ const ProjectManagement: React.FC = () => {
     end_date: ''
   });
 
+  // Debug logging
+  console.log('ProjectManagement - currentUser:', currentUser);
+  console.log('ProjectManagement - currentUser role:', currentUser?.role);
+
   useEffect(() => {
     if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'client_safety_manager' || currentUser.role === 'gc_project_manager')) {
       loadProjects();
@@ -59,15 +77,20 @@ const ProjectManagement: React.FC = () => {
   // Check if user has access to project management
   if (!currentUser || !['admin', 'client_safety_manager', 'gc_project_manager'].includes(currentUser.role)) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <div className="text-center">
-            <h3 className="text-lg font-medium text-gray-900">Access Denied</h3>
-            <p className="mt-2 text-sm text-gray-500">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardBody className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.767 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Denied</h3>
+            <p className="text-sm text-gray-600">
               You must be an administrator, client safety manager, or project manager to access project management.
             </p>
-          </div>
-        </div>
+          </CardBody>
+        </Card>
       </div>
     );
   }
@@ -209,10 +232,56 @@ const ProjectManagement: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <span className="mt-2 text-gray-600">Loading projects...</span>
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="max-w-7xl mx-auto">
+          {/* Header Skeleton */}
+          <Card className="mb-6">
+            <CardBody>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="skeleton h-8 w-64 mb-2" />
+                  <div className="skeleton h-4 w-96" />
+                </div>
+                <div className="skeleton h-10 w-32" />
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Stats Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index}>
+                <CardBody>
+                  <div className="flex items-center">
+                    <div className="skeleton skeleton-avatar mr-4" />
+                    <div className="flex-1">
+                      <div className="skeleton h-4 w-20 mb-1" />
+                      <div className="skeleton h-6 w-12" />
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            ))}
+          </div>
+
+          {/* Filters Skeleton */}
+          <Card className="mb-6">
+            <CardBody>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="skeleton h-4 w-24 mb-2" />
+                  <div className="skeleton h-10 w-full" />
+                </div>
+                <div>
+                  <div className="skeleton h-4 w-24 mb-2" />
+                  <div className="skeleton h-10 w-full" />
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Table Skeleton */}
+          <SkeletonTable rows={6} columns={6} />
         </div>
       </div>
     );
@@ -222,122 +291,132 @@ const ProjectManagement: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Project Management</h1>
-              <p className="mt-2 text-sm text-gray-700">
-                Create and manage projects for safety audits
-              </p>
+        <Card className="mb-6" elevated>
+          <CardBody>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gradient">Project Management</h1>
+                <p className="mt-2 text-sm text-gray-600">
+                  Create and manage projects for safety audits
+                </p>
+              </div>
+              <Button
+                onClick={() => setShowCreateForm(true)}
+                modern
+                icon={
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                }
+              >
+                Add Project
+              </Button>
             </div>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Add Project
-            </button>
-          </div>
-        </div>
+          </CardBody>
+        </Card>
 
         {/* Messages */}
         {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
+          <Card severity="critical" className="mb-4 animate-slide-in">
+            <CardBody>
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {error}
+              </div>
+            </CardBody>
+          </Card>
         )}
         {success && (
-          <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-            {success}
-          </div>
+          <Card severity="low" className="mb-4 animate-slide-in">
+            <CardBody>
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {success}
+              </div>
+            </CardBody>
+          </Card>
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
+        <div className="grid-responsive mb-6">
+          <Card interactive className="hover:scale-105">
+            <CardBody>
               <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Projects</dt>
-                    <dd className="text-lg font-medium text-gray-900">{projects.length}</dd>
-                  </dl>
+                <div className="ml-4">
+                  <dt className="text-sm font-medium text-gray-500">Total Projects</dt>
+                  <dd className="text-2xl font-bold text-gray-900">{projects.length}</dd>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
+          <Card interactive className="hover:scale-105">
+            <CardBody>
               <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Active Projects</dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {projects.filter(p => p.is_active && getProjectStatus(p) === 'Active').length}
-                    </dd>
-                  </dl>
+                <div className="ml-4">
+                  <dt className="text-sm font-medium text-gray-500">Active Projects</dt>
+                  <dd className="text-2xl font-bold text-gray-900">
+                    {projects.filter(p => p.is_active && getProjectStatus(p) === 'Active').length}
+                  </dd>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
+          <Card interactive className="hover:scale-105">
+            <CardBody>
               <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-8 w-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Upcoming</dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {projects.filter(p => getProjectStatus(p) === 'Upcoming').length}
-                    </dd>
-                  </dl>
+                <div className="ml-4">
+                  <dt className="text-sm font-medium text-gray-500">Upcoming</dt>
+                  <dd className="text-2xl font-bold text-gray-900">
+                    {projects.filter(p => getProjectStatus(p) === 'Upcoming').length}
+                  </dd>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
+          <Card interactive className="hover:scale-105">
+            <CardBody>
               <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {projects.filter(p => getProjectStatus(p) === 'Completed').length}
-                    </dd>
-                  </dl>
+                <div className="ml-4">
+                  <dt className="text-sm font-medium text-gray-500">Completed</dt>
+                  <dd className="text-2xl font-bold text-gray-900">
+                    {projects.filter(p => getProjectStatus(p) === 'Completed').length}
+                  </dd>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
         </div>
 
         {/* Filters */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="p-6">
+        <Card className="mb-6">
+          <CardBody>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -348,7 +427,7 @@ const ProjectManagement: React.FC = () => {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search by name, company, or description..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 />
               </div>
               <div>
@@ -358,7 +437,7 @@ const ProjectManagement: React.FC = () => {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 >
                   <option value="all">All Projects</option>
                   <option value="active">Active Only</option>
@@ -366,11 +445,11 @@ const ProjectManagement: React.FC = () => {
                 </select>
               </div>
             </div>
-          </div>
-        </div>
+          </CardBody>
+        </Card>
 
         {/* Projects Table */}
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">
               Projects ({filteredProjects.length})
@@ -380,22 +459,22 @@ const ProjectManagement: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Project
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Companies
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Timeline
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">
                     Actions
                   </th>
                 </tr>
@@ -405,7 +484,7 @@ const ProjectManagement: React.FC = () => {
                   const status = getProjectStatus(project);
                   return (
                     <tr key={project.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">{project.name}</div>
                           {project.description && (
@@ -415,13 +494,13 @@ const ProjectManagement: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
                           <div><span className="font-medium">Client:</span> {project.client_company}</div>
                           <div><span className="font-medium">Contractor:</span> {project.contractor_company}</div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
                           <div>Start: {formatDate(project.start_date)}</div>
                           {project.end_date && (
@@ -429,46 +508,51 @@ const ProjectManagement: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                           {status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(project.created_at)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleToggleProjectStatus(project.id, !project.is_active)}
+                            className={`inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded ${
+                              project.is_active 
+                                ? 'text-yellow-700 bg-yellow-100 hover:bg-yellow-200' 
+                                : 'text-green-700 bg-green-100 hover:bg-green-200'
+                            } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500`}
+                          >
+                            {project.is_active ? 'Archive' : 'Activate'}
+                          </button>
+                          
                           <button
                             onClick={() => setEditingProject(project)}
-                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                           >
                             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                             Edit
                           </button>
-                          <button
-                            onClick={() => handleToggleProjectStatus(project.id, project.is_active)}
-                            className={`inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                              project.is_active 
-                                ? 'text-orange-700 bg-orange-100 hover:bg-orange-200 focus:ring-orange-500' 
-                                : 'text-green-700 bg-green-100 hover:bg-green-200 focus:ring-green-500'
-                            }`}
-                          >
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              {project.is_active ? (
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8l4 4L19 2" />
-                              ) : (
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              )}
-                            </svg>
-                            {project.is_active ? 'Archive' : 'Activate'}
-                          </button>
-                          {currentUser?.role === 'client_safety_manager' && (
+
+                          {(() => {
+                            const canDelete = currentUser?.role === 'admin' || currentUser?.role === 'client_safety_manager';
+                            console.log('Delete button check:', {
+                              currentUser: currentUser,
+                              role: currentUser?.role,
+                              canDelete: canDelete,
+                              isAdmin: currentUser?.role === 'admin',
+                              isClientSafetyManager: currentUser?.role === 'client_safety_manager'
+                            });
+                            return canDelete;
+                          })() && (
                             <button
                               onClick={() => setDeletingProject(project)}
-                              className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                              className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                             >
                               <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
