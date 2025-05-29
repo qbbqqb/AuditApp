@@ -5,20 +5,20 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/layout/Layout';
-import LoginForm from './components/auth/LoginForm';
+import Dashboard from './components/dashboard/Dashboard';
 import FindingsList from './components/findings/FindingsList';
 import FindingDetail from './components/findings/FindingDetail';
 import CreateFinding from './components/findings/CreateFinding';
+import { BulkImport } from './components/findings/BulkImport';
+import LoginForm from './components/auth/LoginForm';
+import RegisterForm from './components/auth/RegisterForm';
 import ReportBuilder from './components/reports/ReportBuilder';
-import Dashboard from './components/dashboard/Dashboard';
-import SupabaseTest from './components/SupabaseTest';
-import ConnectionTest from './components/ConnectionTest';
 import AdminDashboard from './components/admin/AdminDashboard';
 import UserManagement from './components/admin/UserManagement';
 import ProjectManagement from './components/admin/ProjectManagement';
 import ProjectAssignments from './components/admin/ProjectAssignments';
 import AdvancedAnalytics from './components/analytics/AdvancedAnalytics';
-import UIShowcase from './components/demo/UIShowcase';
+import { NotificationTester } from './components/admin/NotificationTester';
 import './App.css';
 
 // Create a client for React Query
@@ -50,8 +50,6 @@ function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<LoginForm />} />
-              <Route path="/test" element={<SupabaseTest />} />
-              <Route path="/connection-test" element={<ConnectionTest />} />
               
               {/* Protected routes */}
               <Route path="/" element={
@@ -59,11 +57,13 @@ function App() {
                   <Layout />
                 </ProtectedRoute>
               }>
-                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route index element={<Dashboard />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="findings" element={<FindingsList />} />
                 <Route path="findings/:id" element={<FindingDetail />} />
                 <Route path="findings/new" element={<CreateFinding />} />
+                <Route path="findings/bulk-import" element={<BulkImport />} />
+                <Route path="analytics" element={<AdvancedAnalytics />} />
                 <Route path="reports" element={<ReportBuilder />} />
                 
                 {/* Admin routes */}
@@ -72,10 +72,7 @@ function App() {
                 <Route path="admin/projects" element={<ProjectManagement />} />
                 <Route path="admin/assignments" element={<ProjectAssignments />} />
                 <Route path="admin/analytics" element={<AdvancedAnalytics />} />
-                <Route path="admin/settings" element={<div className="p-8 text-center text-secondary">Settings coming soon...</div>} />
-                
-                {/* Demo route */}
-                <Route path="demo/ui-showcase" element={<UIShowcase />} />
+                <Route path="admin/settings" element={<NotificationTester />} />
               </Route>
               
               {/* Catch all route */}

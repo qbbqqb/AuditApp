@@ -33,9 +33,6 @@ const Layout: React.FC = () => {
     navigationItems.push({ name: 'Create Finding', href: '/findings/new', icon: '➕' });
   }
 
-  // Add UI Demo for development/demo purposes
-  navigationItems.push({ name: 'UI Demo', href: '/demo/ui-showcase', icon: '🎨' });
-
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}

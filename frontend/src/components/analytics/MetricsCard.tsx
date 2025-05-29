@@ -31,14 +31,6 @@ const MetricsCard: React.FC<MetricsCardProps> = ({
     purple: 'border-purple-200 bg-purple-50 text-purple-700'
   };
 
-  const iconColors = {
-    blue: 'text-blue-600',
-    green: 'text-green-600',
-    red: 'text-red-600',
-    yellow: 'text-yellow-600',
-    purple: 'text-purple-600'
-  };
-
   if (loading) {
     return (
       <div className="bg-surface overflow-hidden shadow-base rounded-lg border border-default">
