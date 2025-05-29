@@ -3,9 +3,25 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { FindingsService, type FindingsFilters } from '../../services/findingsService';
 import { BulkImport } from './BulkImport';
+import { 
+  Card, 
+  CardBody, 
+  CardHeader, 
+  Button, 
+  StatusIndicator, 
+  SeverityIndicator,
+  SkeletonCard 
+} from '../ui';
 import type { Finding } from '../../types/findings';
 import type { ImportResult } from '../../services/bulkImportService';
 import { supabase } from '../../config/supabase';
+import { 
+  PlusIcon, 
+  FunnelIcon, 
+  ArrowUpTrayIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon
+} from '@heroicons/react/24/outline';
 
 const FindingsList: React.FC = () => {
   const { user } = useAuth();
@@ -40,22 +56,6 @@ const FindingsList: React.FC = () => {
     
     checkAuth();
   }, [user]);
-
-  const severityColors = {
-    critical: 'bg-red-100 text-red-800 border-red-200',
-    high: 'bg-orange-100 text-orange-800 border-orange-200',
-    medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    low: 'bg-green-100 text-green-800 border-green-200'
-  };
-
-  const statusColors = {
-    open: 'bg-blue-100 text-blue-800 border-blue-200',
-    assigned: 'bg-purple-100 text-purple-800 border-purple-200',
-    in_progress: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-    completed_pending_approval: 'bg-amber-100 text-amber-800 border-amber-200',
-    closed: 'bg-green-100 text-green-800 border-green-200',
-    overdue: 'bg-red-100 text-red-800 border-red-200'
-  };
 
   const fetchFindings = useCallback(async () => {
     try {
@@ -109,6 +109,25 @@ const FindingsList: React.FC = () => {
     return new Date(dueDate) < new Date();
   };
 
+  // Helper function to map finding status to StatusIndicator compatible types
+  const mapStatusForIndicator = (findingStatus: string, isOverdue: boolean) => {
+    if (isOverdue) return 'overdue' as any; // Handle overdue separately
+    
+    switch (findingStatus) {
+      case 'open':
+      case 'assigned':
+        return 'open';
+      case 'in_progress':
+        return 'in_progress';
+      case 'completed_pending_approval':
+        return 'resolved';
+      case 'closed':
+        return 'closed';
+      default:
+        return 'open';
+    }
+  };
+
   const handleImportComplete = (result: ImportResult) => {
     // Refresh the findings list after successful import
     fetchFindings();
@@ -123,273 +142,315 @@ const FindingsList: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="container-padding">
+        <div className="space-y-6">
+          {/* Header Skeleton */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+            <div>
+              <div className="h-8 w-48 bg-muted rounded-lg animate-pulse mb-2"></div>
+              <div className="h-4 w-72 bg-muted rounded animate-pulse"></div>
+            </div>
+            <div className="flex gap-3">
+              <div className="h-10 w-24 bg-muted rounded-lg animate-pulse"></div>
+              <div className="h-10 w-24 bg-muted rounded-lg animate-pulse"></div>
+            </div>
+          </div>
+          
+          {/* Filters Skeleton */}
+          <SkeletonCard />
+          
+          {/* Findings Skeleton */}
+          <div className="space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="px-4 py-6 sm:px-0">
+    <div className="container-padding space-y-6">
       {/* Debug Info - Temporarily hidden */}
       {false && debugInfo && (
-        <div className="mb-4 p-4 bg-gray-100 rounded-lg">
-          <h3 className="font-bold text-sm mb-2">Debug Info:</h3>
-          <pre className="text-xs overflow-auto">
-            {JSON.stringify(debugInfo, null, 2)}
-          </pre>
-        </div>
+        <Card className="bg-info-50 border-info-200">
+          <CardHeader>
+            <h3 className="font-bold text-sm text-info">Debug Info:</h3>
+          </CardHeader>
+          <CardBody>
+            <pre className="text-xs overflow-auto text-info-700">
+              {JSON.stringify(debugInfo, null, 2)}
+            </pre>
+          </CardBody>
+        </Card>
       )}
       
-      <div className="sm:flex sm:items-center sm:justify-between mb-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Safety Findings</h1>
-          <p className="mt-2 text-sm text-gray-700">
+          <h1 className="text-3xl font-bold text-primary mb-2">Safety Findings</h1>
+          <p className="text-secondary">
             Track and manage safety findings across all projects
           </p>
         </div>
         {user?.role === 'client_safety_manager' && (
-          <div className="mt-4 sm:mt-0 flex space-x-3">
-            <button
+          <div className="flex gap-3">
+            <Button
               onClick={() => setShowBulkImport(true)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              variant="secondary"
+              size="sm"
+              className="transition-transform hover:scale-105"
             >
-              <svg className="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
+              <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
               Bulk Import
-            </button>
-            <Link
-              to="/findings/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              <span className="mr-2">+</span>
-              New Finding
+            </Button>
+            <Link to="/findings/new">
+              <Button
+                variant="primary"
+                size="sm"
+                className="transition-transform hover:scale-105"
+              >
+                <PlusIcon className="h-4 w-4 mr-2" />
+                New Finding
+              </Button>
             </Link>
           </div>
         )}
       </div>
 
-      {/* Filters */}
-      <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Filters</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Status
-            </label>
-            <select
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">All Statuses</option>
-              <option value="open">Open</option>
-              <option value="assigned">Assigned</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed_pending_approval">Pending Approval</option>
-              <option value="closed">Closed</option>
-              <option value="overdue">Overdue</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Severity
-            </label>
-            <select
-              value={filters.severity}
-              onChange={(e) => handleFilterChange('severity', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">All Severities</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Category
-            </label>
-            <select
-              value={filters.category}
-              onChange={(e) => handleFilterChange('category', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">All Categories</option>
-              <option value="fall_protection">Fall Protection</option>
-              <option value="electrical_safety">Electrical Safety</option>
-              <option value="ppe_compliance">PPE Compliance</option>
-              <option value="housekeeping">Housekeeping</option>
-              <option value="equipment_safety">Equipment Safety</option>
-              <option value="environmental">Environmental</option>
-              <option value="fire_safety">Fire Safety</option>
-              <option value="confined_space">Confined Space</option>
-              <option value="chemical_safety">Chemical Safety</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search
-            </label>
-            <input
-              type="text"
-              placeholder="Search findings..."
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            />
-          </div>
-        </div>
-      </div>
-
+      {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-          {error}
-        </div>
+        <Card className="border-danger-200 bg-danger-50">
+          <CardBody>
+            <div className="flex items-start space-x-4">
+              <ExclamationTriangleIcon className="h-5 w-5 text-danger flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-danger mb-1">Error</h3>
+                <p className="text-sm text-danger-700">{error}</p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
       )}
 
-      {/* Findings List */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        <ul className="divide-y divide-gray-200">
-          {findings.map((finding) => (
-            <li key={finding.id}>
-              <Link
-                to={`/findings/${finding.id}`}
-                className="block hover:bg-gray-50 px-4 py-4 sm:px-6"
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <FunnelIcon className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold text-primary">Filters</h3>
+          </div>
+        </CardHeader>
+        <CardBody>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">
+                Status
+              </label>
+              <select
+                value={filters.status || ''}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+                className="w-full px-3 py-2 border border-default rounded-lg bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               >
-                <div className="flex items-center justify-between">
+                <option value="">All Statuses</option>
+                <option value="open">Open</option>
+                <option value="assigned">Assigned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed_pending_approval">Pending Approval</option>
+                <option value="closed">Closed</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">
+                Severity
+              </label>
+              <select
+                value={filters.severity || ''}
+                onChange={(e) => handleFilterChange('severity', e.target.value)}
+                className="w-full px-3 py-2 border border-default rounded-lg bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="">All Severities</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">
+                Category
+              </label>
+              <select
+                value={filters.category || ''}
+                onChange={(e) => handleFilterChange('category', e.target.value)}
+                className="w-full px-3 py-2 border border-default rounded-lg bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="">All Categories</option>
+                <option value="structural">Structural</option>
+                <option value="electrical">Electrical</option>
+                <option value="ppe">PPE</option>
+                <option value="environmental">Environmental</option>
+                <option value="procedural">Procedural</option>
+                <option value="equipment">Equipment</option>
+                <option value="housekeeping">Housekeeping</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">
+                Project
+              </label>
+              <select
+                value={filters.projectId || ''}
+                onChange={(e) => handleFilterChange('projectId', e.target.value)}
+                className="w-full px-3 py-2 border border-default rounded-lg bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="">All Projects</option>
+                {/* Project options would be loaded dynamically */}
+              </select>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Findings List */}
+      {findings.length === 0 ? (
+        <Card>
+          <CardBody className="text-center py-12">
+            <InformationCircleIcon className="h-16 w-16 text-muted mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-primary mb-2">No findings found</h3>
+            <p className="text-secondary mb-6">
+              {Object.keys(filters).some(key => filters[key as keyof FindingsFilters])
+                ? "Try adjusting your filters to see more results."
+                : "Create your first safety finding to get started."}
+            </p>
+            {user?.role === 'client_safety_manager' && (
+              <Link to="/findings/new">
+                <Button variant="primary">
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Create Finding
+                </Button>
+              </Link>
+            )}
+          </CardBody>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {findings.map((finding) => (
+            <Card key={finding.id} className="hover:shadow-lg transition-shadow duration-300">
+              <CardBody>
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-lg font-medium text-indigo-600 truncate">
-                        {finding.title}
-                      </p>
-                      <div className="flex items-center space-x-2 ml-2">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${severityColors[finding.severity]}`}>
-                          {finding.severity.toUpperCase()}
-                        </span>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusColors[finding.status]}`}>
-                          {finding.status.replace('_', ' ').toUpperCase()}
-                        </span>
-                        {isOverdue(finding.due_date, finding.status) && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                            OVERDUE
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <Link
+                          to={`/findings/${finding.id}`}
+                          className="text-lg font-semibold text-primary hover:text-blue-600 transition-colors"
+                        >
+                          {finding.title}
+                        </Link>
+                        <p className="text-sm text-secondary mt-1 line-clamp-2">
+                          {finding.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 text-sm">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-secondary">Location:</span>
+                        <span className="text-primary font-medium">{finding.location}</span>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <span className="text-secondary">Created:</span>
+                        <span className="text-primary">{formatDate(finding.created_at)}</span>
+                      </div>
+
+                      {finding.due_date && (
+                        <div className="flex items-center space-x-2">
+                          <span className="text-secondary">Due:</span>
+                          <span className={`font-medium ${
+                            isOverdue(finding.due_date, finding.status) 
+                              ? 'text-danger' 
+                              : 'text-primary'
+                          }`}>
+                            {formatDate(finding.due_date)}
                           </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-900">
-                        {finding.description.length > 150 
-                          ? `${finding.description.substring(0, 150)}...` 
-                          : finding.description
-                        }
-                      </p>
-                    </div>
-                    
-                    <div className="mt-2 sm:flex sm:justify-between">
-                      <div className="sm:flex">
-                        <p className="flex items-center text-sm text-gray-500">
-                          <span className="mr-1">📍</span>
-                          {finding.location}
-                        </p>
-                        <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                          <span className="mr-1">🏗️</span>
-                          {finding.project?.name || 'Unknown Project'}
-                        </p>
-                      </div>
-                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                        <p>
-                          Created: {formatDate(finding.created_at)} • 
-                          Due: {formatDate(finding.due_date)}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-2 sm:flex sm:justify-between">
-                      <p className="text-sm text-gray-500">
-                        Created by: {finding.created_by_profile?.first_name || 'Unknown'} {finding.created_by_profile?.last_name || 'User'}
-                      </p>
-                      {finding.assigned_to_profile && (
-                        <p className="text-sm text-gray-500">
-                          Assigned to: {finding.assigned_to_profile?.first_name || 'Unknown'} {finding.assigned_to_profile?.last_name || 'User'}
-                        </p>
+                        </div>
+                      )}
+
+                      {finding.project?.name && (
+                        <div className="flex items-center space-x-2">
+                          <span className="text-secondary">Project:</span>
+                          <span className="text-primary font-medium">{finding.project.name}</span>
+                        </div>
                       )}
                     </div>
                   </div>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 mt-6 rounded-lg shadow">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Page <span className="font-medium">{currentPage}</span> of{' '}
-                <span className="font-medium">{totalPages}</span>
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </nav>
-            </div>
-          </div>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <div className="flex flex-wrap gap-2">
+                      <SeverityIndicator severity={finding.severity} />
+                      <StatusIndicator 
+                        status={mapStatusForIndicator(finding.status, isOverdue(finding.due_date, finding.status))} 
+                      />
+                    </div>
+                    
+                    <Link to={`/findings/${finding.id}`}>
+                      <Button variant="secondary" size="sm">
+                        View Details
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          ))}
         </div>
       )}
 
-      {findings.length === 0 && !loading && (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">No findings found matching your criteria.</p>
-          {user?.role === 'client_safety_manager' && (
-            <Link
-              to="/findings/new"
-              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
-            >
-              Create First Finding
-            </Link>
-          )}
-        </div>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Card>
+          <CardBody>
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-secondary">
+                Page {currentPage} of {totalPages}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Previous
+                </Button>
+                <Button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showBulkImport && (
+        <BulkImport
+          onImportComplete={handleImportComplete}
+          onClose={() => setShowBulkImport(false)}
+        />
       )}
     </div>
   );

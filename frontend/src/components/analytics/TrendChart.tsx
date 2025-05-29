@@ -42,11 +42,11 @@ const TrendChart: React.FC<TrendChartProps> = ({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 shadow-lg rounded-lg border">
-          <p className="font-medium text-gray-900">{formatDate(label)}</p>
+        <div className="bg-surface p-3 shadow-lg rounded-lg border border-default">
+          <p className="text-primary font-medium">{`Date: ${label}`}</p>
           {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {`${entry.dataKey.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase())}: ${entry.value}`}
+            <p key={index} style={{ color: entry.color }} className="text-sm">
+              {`${entry.name}: ${entry.value}`}
             </p>
           ))}
         </div>
@@ -57,10 +57,10 @@ const TrendChart: React.FC<TrendChartProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">{title}</h3>
+      <div className="bg-surface p-6 rounded-lg shadow-base border border-default">
+        <h3 className="text-lg font-medium text-primary mb-4">{title}</h3>
         <div className="animate-pulse">
-          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="bg-gray-200 h-64 rounded"></div>
         </div>
       </div>
     );
@@ -69,8 +69,8 @@ const TrendChart: React.FC<TrendChartProps> = ({
   const Chart = type === 'area' ? AreaChart : LineChart;
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">{title}</h3>
+    <div className="bg-surface p-6 rounded-lg shadow-base border border-default">
+      <h3 className="text-lg font-medium text-primary mb-4">{title}</h3>
       <ResponsiveContainer width="100%" height={height}>
         <Chart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />

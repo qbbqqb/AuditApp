@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { supabaseAdmin } from '../config/supabase';
+import { validationResult } from 'express-validator';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -106,6 +107,21 @@ const createThumbnail = async (filePath: string): Promise<string | null> => {
 
 export const uploadEvidence = async (req: MulterRequest, res: Response): Promise<void> => {
   try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      // Clean up uploaded file if validation fails
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(400).json({
+        success: false,
+        message: 'Invalid parameters',
+        errors: errors.array()
+      });
+      return;
+    }
+
     console.log('📤 Upload evidence request received');
     console.log('User:', req.user ? `${req.user.id} (${req.user.role})` : 'Not authenticated');
     console.log('File:', req.file ? `${req.file.originalname} (${req.file.size} bytes)` : 'No file');
@@ -260,6 +276,17 @@ export const uploadEvidence = async (req: MulterRequest, res: Response): Promise
 
 export const getEvidence = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid parameters',
+        errors: errors.array()
+      });
+      return;
+    }
+
     if (!req.user) {
       res.status(401).json({
         success: false,
@@ -313,6 +340,17 @@ export const getEvidence = async (req: Request, res: Response): Promise<void> =>
 
 export const getEvidenceFile = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid parameters',
+        errors: errors.array()
+      });
+      return;
+    }
+
     if (!req.user) {
       res.status(401).json({
         success: false,
@@ -373,6 +411,17 @@ export const getEvidenceFile = async (req: Request, res: Response): Promise<void
 
 export const downloadEvidence = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid parameters',
+        errors: errors.array()
+      });
+      return;
+    }
+
     if (!req.user) {
       res.status(401).json({
         success: false,
@@ -407,9 +456,10 @@ export const downloadEvidence = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Set appropriate headers for download
+    // Set download headers
     res.setHeader('Content-Disposition', `attachment; filename="${evidence.file_name}"`);
     res.setHeader('Content-Type', evidence.file_type);
+    res.setHeader('Content-Length', evidence.file_size.toString());
 
     // Stream the file
     const fileStream = fs.createReadStream(evidence.file_path);
@@ -425,6 +475,17 @@ export const downloadEvidence = async (req: Request, res: Response): Promise<voi
 
 export const deleteEvidence = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid parameters',
+        errors: errors.array()
+      });
+      return;
+    }
+
     if (!req.user) {
       res.status(401).json({
         success: false,

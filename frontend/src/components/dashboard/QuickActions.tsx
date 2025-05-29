@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../ui';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 interface QuickAction {
   id: string;
@@ -19,13 +21,17 @@ interface QuickActionsProps {
   pendingApprovalCount?: number;
   onCreateFinding?: () => void;
   onBulkUpdate?: () => void;
+  onRefresh?: () => void;
+  loading?: boolean;
 }
 
 const QuickActions: React.FC<QuickActionsProps> = ({
   overdueCount = 0,
   pendingApprovalCount = 0,
   onCreateFinding,
-  onBulkUpdate
+  onBulkUpdate,
+  onRefresh,
+  loading
 }) => {
   const { user } = useAuth();
 
@@ -122,76 +128,36 @@ const QuickActions: React.FC<QuickActionsProps> = ({
   const actions = getQuickActions();
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
+    <div className="bg-surface shadow-base rounded-lg p-6 border border-default">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
-        <span className="text-sm text-gray-500">
-          Based on your role: {user?.role?.replace('_', ' ')}
-        </span>
+        <h3 className="text-lg font-medium text-primary">Quick Actions</h3>
+        <Button
+          onClick={onRefresh}
+          variant="secondary"
+          size="sm"
+          disabled={loading}
+          className="transition-transform hover:scale-105"
+        >
+          <ArrowPathIcon className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {actions.map((action) => {
-          const baseClassName = `
-            relative p-4 border-2 rounded-lg transition-all duration-200 
-            ${getColorClasses(action.color)}
-            ${action.disabled 
-              ? 'opacity-50 cursor-not-allowed' 
-              : 'hover:scale-105 hover:shadow-md cursor-pointer'
-            }
-          `;
-
-          const content = (
-            <>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-2xl">{action.icon}</span>
-                    <h4 className="font-medium">{action.title}</h4>
-                  </div>
-                  <p className="text-sm opacity-75">{action.description}</p>
-                </div>
-                
-                {action.badge && (
-                  <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
-                    {action.badge}
-                  </span>
-                )}
-              </div>
-
-              {/* Hover effect arrow */}
-              <div className="absolute top-1/2 right-4 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </>
-          );
-
-          if (action.href) {
-            return (
-              <Link
-                key={action.id}
-                to={action.href}
-                className={`${baseClassName} block`}
-              >
-                {content}
-              </Link>
-            );
-          }
-
-          return (
-            <button
-              key={action.id}
-              type="button"
-              onClick={action.onClick}
-              disabled={action.disabled}
-              className={`${baseClassName} w-full text-left`}
-            >
-              {content}
-            </button>
-          );
-        })}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {actions.map((action, index) => (
+          <Button
+            key={index}
+            onClick={action.onClick}
+            variant="secondary"
+            className="h-auto p-4 flex flex-col items-center text-center hover:bg-surface-hover transition-all duration-200 group"
+          >
+            <div className={`w-8 h-8 mb-2 text-${action.color}-600 group-hover:scale-110 transition-transform`}>
+              {action.icon}
+            </div>
+            <span className="text-sm font-medium text-primary mb-1">{action.title}</span>
+            <span className="text-xs text-secondary">{action.description}</span>
+          </Button>
+        ))}
       </div>
 
       {/* Helper text */}

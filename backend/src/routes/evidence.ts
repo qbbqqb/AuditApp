@@ -8,6 +8,7 @@ import {
   upload
 } from '../controllers/evidenceController';
 import { authenticateToken } from '../middleware/auth';
+import { validateFindingId, validateEvidenceId } from '../middleware/validation';
 import { Request, Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../config/supabase';
 
@@ -73,18 +74,18 @@ const authenticateFileAccess = async (req: Request, res: Response, next: NextFun
 router.use(authenticateToken);
 
 // GET /api/evidence/finding/:finding_id - Get all evidence for a finding
-router.get('/finding/:finding_id', getEvidence);
+router.get('/finding/:finding_id', validateFindingId, getEvidence);
 
 // POST /api/evidence/finding/:finding_id - Upload evidence for a finding
-router.post('/finding/:finding_id', upload.single('file') as any, uploadEvidence);
+router.post('/finding/:finding_id', validateFindingId, upload.single('file') as any, uploadEvidence);
 
 // GET /api/evidence/:id/download - Download specific evidence file
-router.get('/:id/download', downloadEvidence);
+router.get('/:id/download', validateEvidenceId, downloadEvidence);
 
 // DELETE /api/evidence/:id - Delete evidence
-router.delete('/:id', deleteEvidence);
+router.delete('/:id', validateEvidenceId, deleteEvidence);
 
 // GET /api/evidence/:id/file - Serve evidence file (for display) - uses custom auth
-router.get('/:id/file', authenticateFileAccess, getEvidenceFile);
+router.get('/:id/file', validateEvidenceId, authenticateFileAccess, getEvidenceFile);
 
 export default router; 

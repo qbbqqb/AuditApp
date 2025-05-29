@@ -89,20 +89,18 @@ const HealthScore: React.FC<HealthScoreProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">{title}</h3>
-        <div className="flex items-center justify-center">
-          <div className="animate-pulse">
-            <div className={`${config.container} bg-gray-200 rounded-full`}></div>
-          </div>
+      <div className="bg-surface p-6 rounded-lg shadow-base border border-default">
+        <h3 className="text-lg font-medium text-primary mb-4">{title}</h3>
+        <div className="animate-pulse flex justify-center">
+          <div className="w-32 h-32 bg-gray-200 rounded-full"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">{title}</h3>
+    <div className="bg-surface p-6 rounded-lg shadow-base border border-default">
+      <h3 className="text-lg font-medium text-primary mb-4">{title}</h3>
       
       <div className="flex items-center justify-center">
         <div className="relative">
@@ -135,7 +133,7 @@ const HealthScore: React.FC<HealthScoreProps> = ({
           {/* Score text overlay */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <div className={`${config.text} font-bold text-gray-900`}>
+              <div className={`${config.text} font-bold text-primary`}>
                 {Math.round(score)}
               </div>
               <div className="text-xs text-gray-500">

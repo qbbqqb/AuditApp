@@ -1,4 +1,4 @@
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
 
 export const validateRegistration = [
   body('email')
@@ -131,4 +131,23 @@ export const validateComment = [
     .optional()
     .isBoolean()
     .withMessage('Is internal must be a boolean value')
+];
+
+// Evidence validation
+export const validateFindingId = [
+  param('finding_id')
+    .isUUID()
+    .withMessage('Please provide a valid finding ID')
+];
+
+export const validateEvidenceId = [
+  param('id')
+    .isUUID()
+    .withMessage('Please provide a valid evidence ID')
+];
+
+export const validateProjectId = [
+  param('id')
+    .isUUID()
+    .withMessage('Please provide a valid project ID')
 ]; 

@@ -4,6 +4,9 @@ export * from './Button';
 export * from './Modal';
 export * from './Skeleton';
 export * from './StatusIndicator';
+export * from './Select';
+export * from './MultiSelect';
+export * from './DateRangePicker';
 
 // Card Components
 export { Card, CardHeader, CardBody, CardFooter } from './Card';
@@ -32,6 +35,11 @@ export {
   PriorityBadge, 
   ProgressIndicator 
 } from './StatusIndicator';
+
+// Form Components
+export { Select } from './Select';
+export { MultiSelect } from './MultiSelect';
+export { DateRangePicker } from './DateRangePicker';
 
 // Theme Components
 export { 

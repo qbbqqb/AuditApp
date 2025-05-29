@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
+// import { Card, CardBody, CardHeader, Button, Select, MultiSelect, DateRangePicker } from '../ui';
+// import { reportsService, ReportConfig, ReportPreview } from '../../services/reportsService';
+// import { FindingSeverity, FindingStatus, FindingCategory } from '../../types/findings';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../config/supabase';
-import {
-  ChartBarIcon,
-  DocumentArrowDownIcon,
-  EyeIcon,
-  CalendarIcon,
-  FunnelIcon,
-  TableCellsIcon,
-  ChartPieIcon,
-  PresentationChartLineIcon,
-  ChartBarSquareIcon
-} from '@heroicons/react/24/outline';
+// import {
+//   ChartBarIcon,
+//   DocumentArrowDownIcon,
+//   EyeIcon,
+//   CalendarIcon,
+//   FunnelIcon,
+//   TableCellsIcon,
+//   ChartPieIcon,
+//   PresentationChartLineIcon,
+//   ChartBarSquareIcon
+// } from '@heroicons/react/24/outline';
 
-interface ReportConfig {
+interface ReportBuilderConfig {
   id?: string;
   name: string;
   description: string;
@@ -47,17 +50,22 @@ interface Project {
   client_company: string;
 }
 
-interface User {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  role: string;
+// interface User {
+//   id: string;
+//   first_name: string;
+//   last_name: string;
+//   email: string;
+//   role: string;
+// }
+
+interface ReportBuilderProps {
+  onReportGenerated?: (reportData: any) => void;
 }
 
-const ReportBuilder: React.FC = () => {
+const ReportBuilder: React.FC<ReportBuilderProps> = ({ onReportGenerated }) => {
   const { user, session } = useAuth();
-  const [reportConfig, setReportConfig] = useState<ReportConfig>({
+  // const navigate = useNavigate(); // Unused but may be needed later
+  const [reportConfig, setReportConfig] = useState<ReportBuilderConfig>({
     name: '',
     description: '',
     dataSource: 'findings',
@@ -79,15 +87,15 @@ const ReportBuilder: React.FC = () => {
   });
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [savedReports, setSavedReports] = useState<ReportConfig[]>([]);
+  // const [users, setUsers] = useState<User[]>([]); // Unused but may be needed later
+  const [savedReports, setSavedReports] = useState<ReportBuilderConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     fetchProjects();
-    fetchUsers();
+    // fetchUsers(); // Commented out as unused
     fetchSavedReports();
   }, []);
 
@@ -108,10 +116,10 @@ const ReportBuilder: React.FC = () => {
     }
   };
 
-  const fetchUsers = async () => {
-    // TODO: Implement user list endpoint
-    setUsers([]);
-  };
+  // const fetchUsers = async () => {
+  //   // TODO: Implement user list endpoint
+  //   // setUsers([]);
+  // };
 
   const fetchSavedReports = async () => {
     // TODO: Implement saved reports endpoint
@@ -162,11 +170,11 @@ const ReportBuilder: React.FC = () => {
 
   const severityOptions = ['critical', 'high', 'medium', 'low'];
   const statusOptions = ['open', 'assigned', 'in_progress', 'completed_pending_approval', 'closed', 'overdue'];
-  const categoryOptions = [
-    'fall_protection', 'electrical_safety', 'ppe_compliance', 'housekeeping',
-    'equipment_safety', 'environmental', 'fire_safety', 'confined_space',
-    'chemical_safety', 'other'
-  ];
+  // const categoryOptions = [ // Commented out as unused
+  //   'fall_protection', 'electrical_safety', 'ppe_compliance', 'housekeeping',
+  //   'equipment_safety', 'environmental', 'fire_safety', 'confined_space',
+  //   'chemical_safety', 'other'
+  // ];
 
   const handleConfigChange = (field: string, value: any) => {
     setReportConfig(prev => ({
@@ -319,8 +327,8 @@ const ReportBuilder: React.FC = () => {
   return (
     <div className="px-4 py-6 sm:px-0">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Advanced Report Builder</h1>
-        <p className="mt-2 text-sm text-gray-700">
+        <h1 className="text-3xl font-bold text-primary">Advanced Report Builder</h1>
+        <p className="mt-2 text-sm text-secondary">
           Create custom reports with advanced filtering, grouping, and export options
         </p>
       </div>
@@ -329,31 +337,31 @@ const ReportBuilder: React.FC = () => {
         {/* Configuration Panel */}
         <div className="lg:col-span-2 space-y-6">
           {/* Basic Report Info */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Report Configuration</h2>
+          <div className="bg-surface shadow-base rounded-lg p-6 border border-default">
+            <h2 className="text-lg font-medium text-primary mb-4">Report Configuration</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-primary mb-2">
                   Report Name *
                 </label>
                 <input
                   type="text"
                   value={reportConfig.name}
                   onChange={(e) => handleConfigChange('name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-default rounded-md bg-surface text-primary placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   placeholder="Monthly Safety Report"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-primary mb-2">
                   Data Source *
                 </label>
                 <select
                   value={reportConfig.dataSource}
                   onChange={(e) => handleConfigChange('dataSource', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-default rounded-md bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 >
                   <option value="findings">Findings</option>
                   <option value="projects">Projects</option>
@@ -364,26 +372,26 @@ const ReportBuilder: React.FC = () => {
             </div>
 
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-primary mb-2">
                 Description
               </label>
               <textarea
                 value={reportConfig.description}
                 onChange={(e) => handleConfigChange('description', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 border border-default rounded-md bg-surface text-primary placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 placeholder="Detailed description of what this report includes"
               />
             </div>
           </div>
 
           {/* Filters */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Filters</h2>
+          <div className="bg-surface shadow-base rounded-lg p-6 border border-default">
+            <h2 className="text-lg font-medium text-primary mb-4">Filters</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-primary mb-2">
                   Start Date
                 </label>
                 <input
@@ -393,12 +401,12 @@ const ReportBuilder: React.FC = () => {
                     ...reportConfig.filters.dateRange,
                     start: e.target.value
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-default rounded-md bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-primary mb-2">
                   End Date
                 </label>
                 <input
@@ -408,7 +416,7 @@ const ReportBuilder: React.FC = () => {
                     ...reportConfig.filters.dateRange,
                     end: e.target.value
                   })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-default rounded-md bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
             </div>
@@ -416,7 +424,7 @@ const ReportBuilder: React.FC = () => {
             {reportConfig.dataSource === 'findings' && (
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-primary mb-2">
                     Severity
                   </label>
                   <select
@@ -425,7 +433,7 @@ const ReportBuilder: React.FC = () => {
                     onChange={(e) => handleFilterChange('severity', 
                       Array.from(e.target.selectedOptions, option => option.value)
                     )}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full px-3 py-2 border border-default rounded-md bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     size={4}
                   >
                     {severityOptions.map(severity => (
@@ -437,7 +445,7 @@ const ReportBuilder: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-primary mb-2">
                     Status
                   </label>
                   <select
@@ -446,7 +454,7 @@ const ReportBuilder: React.FC = () => {
                     onChange={(e) => handleFilterChange('status', 
                       Array.from(e.target.selectedOptions, option => option.value)
                     )}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full px-3 py-2 border border-default rounded-md bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     size={4}
                   >
                     {statusOptions.map(status => (
@@ -460,7 +468,7 @@ const ReportBuilder: React.FC = () => {
             )}
 
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-primary mb-2">
                 Projects
               </label>
               <select
@@ -469,7 +477,7 @@ const ReportBuilder: React.FC = () => {
                 onChange={(e) => handleFilterChange('projectId', 
                   Array.from(e.target.selectedOptions, option => option.value)
                 )}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 border border-default rounded-md bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 size={3}
               >
                 {projects.map(project => (
@@ -482,12 +490,12 @@ const ReportBuilder: React.FC = () => {
           </div>
 
           {/* Columns & Display */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Columns & Display</h2>
+          <div className="bg-surface shadow-base rounded-lg p-6 border border-default">
+            <h2 className="text-lg font-medium text-primary mb-4">Columns & Display</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-primary mb-2">
                   Columns to Include
                 </label>
                 <select
@@ -496,7 +504,7 @@ const ReportBuilder: React.FC = () => {
                   onChange={(e) => handleConfigChange('columns', 
                     Array.from(e.target.selectedOptions, option => option.value)
                   )}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-default rounded-md bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   size={8}
                 >
                   {availableColumns[reportConfig.dataSource]?.map(column => (
@@ -509,13 +517,13 @@ const ReportBuilder: React.FC = () => {
 
               <div>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-primary mb-2">
                     Chart Type
                   </label>
                   <select
                     value={reportConfig.chartType}
                     onChange={(e) => handleConfigChange('chartType', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full px-3 py-2 border border-default rounded-md bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="table">Table</option>
                     <option value="bar">Bar Chart</option>
@@ -526,13 +534,13 @@ const ReportBuilder: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-primary mb-2">
                     Export Format
                   </label>
                   <select
                     value={reportConfig.exportFormat}
                     onChange={(e) => handleConfigChange('exportFormat', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full px-3 py-2 border border-default rounded-md bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   >
                     <option value="pdf">PDF</option>
                     <option value="excel">Excel</option>
@@ -546,14 +554,14 @@ const ReportBuilder: React.FC = () => {
 
         {/* Actions Panel */}
         <div className="space-y-6">
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Actions</h2>
+          <div className="bg-surface shadow-base rounded-lg p-6 border border-default">
+            <h2 className="text-lg font-medium text-primary mb-4">Actions</h2>
             
             <div className="space-y-3">
               <button
                 onClick={generatePreview}
                 disabled={loading || !reportConfig.name}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 border border-default rounded-md text-sm font-medium text-secondary bg-surface hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {loading ? 'Generating...' : 'Preview Report'}
               </button>
@@ -561,7 +569,7 @@ const ReportBuilder: React.FC = () => {
               <button
                 onClick={generateReport}
                 disabled={loading || !reportConfig.name}
-                className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Generate & Download
               </button>
@@ -569,7 +577,7 @@ const ReportBuilder: React.FC = () => {
               <button
                 onClick={saveReport}
                 disabled={loading || !reportConfig.name}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 border border-default rounded-md text-sm font-medium text-secondary bg-surface hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Save Report Template
               </button>
@@ -577,20 +585,20 @@ const ReportBuilder: React.FC = () => {
           </div>
 
           {/* Saved Reports */}
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Saved Reports</h2>
+          <div className="bg-surface shadow-base rounded-lg p-6 border border-default">
+            <h2 className="text-lg font-medium text-primary mb-4">Saved Reports</h2>
             
             {savedReports.length === 0 ? (
-              <p className="text-sm text-gray-500">No saved reports yet</p>
+              <p className="text-sm text-secondary">No saved reports yet</p>
             ) : (
               <div className="space-y-2">
                 {savedReports.map((report, index) => (
-                  <div key={index} className="p-3 border border-gray-200 rounded-md">
-                    <h3 className="text-sm font-medium text-gray-900">{report.name}</h3>
-                    <p className="text-xs text-gray-500 mt-1">{report.description}</p>
+                  <div key={index} className="p-3 border border-default rounded-md bg-surface">
+                    <h3 className="text-sm font-medium text-primary">{report.name}</h3>
+                    <p className="text-xs text-secondary mt-1">{report.description}</p>
                     <button
                       onClick={() => setReportConfig(report)}
-                      className="text-xs text-primary-600 hover:text-primary-800 mt-2"
+                      className="text-xs text-info hover:text-info-hover mt-2 transition-colors"
                     >
                       Load Template
                     </button>
@@ -604,25 +612,25 @@ const ReportBuilder: React.FC = () => {
 
       {/* Preview Section */}
       {showPreview && previewData.length > 0 && (
-        <div className="mt-8 bg-white shadow rounded-lg p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Report Preview</h2>
+        <div className="mt-8 bg-surface shadow-base rounded-lg p-6 border border-default">
+          <h2 className="text-lg font-medium text-primary mb-4">Report Preview</h2>
           
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-secondary">
                 <tr>
                   {reportConfig.columns.map(column => (
-                    <th key={column} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th key={column} className="px-6 py-3 text-left text-xs font-medium text-primary uppercase tracking-wider">
                       {availableColumns[reportConfig.dataSource]?.find(c => c.id === column)?.label || column}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-surface divide-y divide-border">
                 {previewData.slice(0, 10).map((row, index) => (
                   <tr key={index}>
                     {reportConfig.columns.map(column => (
-                      <td key={column} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td key={column} className="px-6 py-4 whitespace-nowrap text-sm text-primary">
                         {row[column] || '-'}
                       </td>
                     ))}
@@ -633,7 +641,7 @@ const ReportBuilder: React.FC = () => {
           </div>
           
           {previewData.length > 10 && (
-            <p className="mt-4 text-sm text-gray-500">
+            <p className="mt-4 text-sm text-secondary">
               Showing first 10 rows of {previewData.length} total results
             </p>
           )}

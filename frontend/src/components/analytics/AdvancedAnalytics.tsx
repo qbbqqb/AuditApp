@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   analyticsService, 
   CategoryAnalytics, 
@@ -13,7 +13,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -34,7 +33,7 @@ const AdvancedAnalytics: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
 
-  const loadAdvancedAnalytics = async () => {
+  const loadAdvancedAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -59,11 +58,11 @@ const AdvancedAnalytics: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedTimeRange]);
 
   useEffect(() => {
     loadAdvancedAnalytics();
-  }, [selectedTimeRange]);
+  }, [loadAdvancedAnalytics]);
 
   const exportAnalytics = async () => {
     try {
@@ -136,8 +135,8 @@ const AdvancedAnalytics: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Advanced Analytics</h1>
-          <p className="text-gray-600 mt-1">Deep insights into safety performance and compliance</p>
+          <h1 className="text-3xl font-bold text-primary">Advanced Analytics</h1>
+          <p className="text-secondary mt-1">Deep insights into safety performance and compliance</p>
         </div>
         <div className="flex items-center space-x-4">
           {/* Time Range Selector */}
@@ -171,12 +170,12 @@ const AdvancedAnalytics: React.FC = () => {
       {/* Compliance & Risk Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Compliance Metrics */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Compliance Overview</h3>
+        <div className="bg-surface shadow-base rounded-lg p-6 border border-default">
+          <h3 className="text-lg font-medium text-primary mb-4">Compliance Overview</h3>
           {complianceMetrics && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Compliance Status</span>
+                <span className="text-sm font-medium text-secondary">Compliance Status</span>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getComplianceStatusColor(complianceMetrics.compliance_status)}`}>
                   {complianceMetrics.compliance_status.charAt(0).toUpperCase() + complianceMetrics.compliance_status.slice(1)}
                 </span>
@@ -184,12 +183,12 @@ const AdvancedAnalytics: React.FC = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{complianceMetrics.compliance_score}%</div>
-                  <div className="text-sm text-gray-500">Compliance Score</div>
+                  <div className="text-2xl font-bold text-info">{complianceMetrics.compliance_score}%</div>
+                  <div className="text-sm text-secondary">Compliance Score</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{complianceMetrics.on_time_closure_rate}%</div>
-                  <div className="text-sm text-gray-500">On-time Closure</div>
+                  <div className="text-2xl font-bold text-success">{complianceMetrics.on_time_closure_rate}%</div>
+                  <div className="text-sm text-secondary">On-time Closure</div>
                 </div>
               </div>
 
@@ -216,8 +215,8 @@ const AdvancedAnalytics: React.FC = () => {
         </div>
 
         {/* Risk Assessment */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Risk Assessment</h3>
+        <div className="bg-surface shadow-base rounded-lg p-6 border border-default">
+          <h3 className="text-lg font-medium text-primary mb-4">Risk Assessment</h3>
           {riskAssessment && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -255,8 +254,8 @@ const AdvancedAnalytics: React.FC = () => {
       </div>
 
       {/* Category Analysis */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Findings by Category</h3>
+      <div className="bg-surface shadow-base rounded-lg p-6 border border-default">
+        <h3 className="text-lg font-medium text-primary mb-4">Findings by Category</h3>
         {categoryData.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Bar Chart */}
@@ -311,8 +310,8 @@ const AdvancedAnalytics: React.FC = () => {
       </div>
 
       {/* Performance Analytics */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Team Performance</h3>
+      <div className="bg-surface shadow-base rounded-lg p-6 border border-default">
+        <h3 className="text-lg font-medium text-primary mb-4">Team Performance</h3>
         {performanceData.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Performance Chart */}
@@ -348,12 +347,12 @@ const AdvancedAnalytics: React.FC = () => {
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rate</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-surface divide-y divide-border">
                     {performanceData.slice(0, 5).map((user) => (
                       <tr key={user.user_id}>
-                        <td className="px-3 py-2 text-sm text-gray-900">{user.name}</td>
-                        <td className="px-3 py-2 text-sm text-gray-500">{user.assigned_findings}</td>
-                        <td className="px-3 py-2 text-sm text-gray-500">{user.closed_findings}</td>
+                        <td className="px-3 py-2 text-sm text-primary">{user.name}</td>
+                        <td className="px-3 py-2 text-sm text-secondary">{user.assigned_findings}</td>
+                        <td className="px-3 py-2 text-sm text-secondary">{user.closed_findings}</td>
                         <td className="px-3 py-2 text-sm">
                           <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
                             user.completion_rate >= 80 ? 'bg-green-100 text-green-800' :
@@ -379,8 +378,8 @@ const AdvancedAnalytics: React.FC = () => {
 
       {/* Category Risk Radar */}
       {riskAssessment && riskAssessment.risk_by_category.length > 0 && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Risk Profile by Category</h3>
+        <div className="bg-surface shadow-base rounded-lg p-6 border border-default">
+          <h3 className="text-lg font-medium text-primary mb-4">Risk Profile by Category</h3>
           <ResponsiveContainer width="100%" height={400}>
             <RadarChart data={riskAssessment.risk_by_category}>
               <PolarGrid />

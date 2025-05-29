@@ -596,6 +596,7 @@ body {
   font-size: var(--font-size-sm);
   line-height: 1;
   border: 1px solid transparent;
+  padding: var(--space-1) var(--space-3);
   transition: all var(--transition-base);
 }
 

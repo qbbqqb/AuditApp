@@ -5,16 +5,9 @@ import { getAllProjects, createProject, updateProject, deleteProject } from '../
 // Import new UI components
 import { 
   Card, 
-  CardHeader, 
   CardBody, 
   Button, 
-  Modal, 
-  ModalBody, 
-  ModalFooter,
-  SkeletonList, 
-  SkeletonTable,
-  StatusIndicator,
-  SeverityIndicator 
+  SkeletonTable 
 } from '../ui';
 
 interface Project {
@@ -77,16 +70,16 @@ const ProjectManagement: React.FC = () => {
   // Check if user has access to project management
   if (!currentUser || !['admin', 'client_safety_manager', 'gc_project_manager'].includes(currentUser.role)) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-surface flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardBody className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 mx-auto mb-4 bg-danger-light rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.996-.833-2.767 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Denied</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="text-lg font-semibold text-primary mb-2">Access Denied</h3>
+            <p className="text-sm text-secondary">
               You must be an administrator, client safety manager, or project manager to access project management.
             </p>
           </CardBody>
@@ -222,17 +215,17 @@ const ProjectManagement: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Active': return 'bg-green-100 text-green-800';
-      case 'Upcoming': return 'bg-blue-100 text-blue-800';
-      case 'Completed': return 'bg-gray-100 text-gray-800';
-      case 'Archived': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'Active': return 'bg-success-light text-success';
+      case 'Upcoming': return 'bg-info-light text-info';
+      case 'Completed': return 'bg-tertiary text-primary';
+      case 'Archived': return 'bg-danger-light text-danger';
+      default: return 'bg-tertiary text-primary';
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
+      <div className="min-h-screen bg-surface p-4">
         <div className="max-w-7xl mx-auto">
           {/* Header Skeleton */}
           <Card className="mb-6">
@@ -288,26 +281,28 @@ const ProjectManagement: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface">
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         {/* Header */}
         <Card className="mb-6" elevated>
           <CardBody>
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gradient">Project Management</h1>
-                <p className="mt-2 text-sm text-gray-600">
+                <h1 className="text-3xl font-bold text-primary">Project Management</h1>
+                <p className="mt-2 text-sm text-secondary">
                   Create and manage projects for safety audits
                 </p>
               </div>
               <Button
                 onClick={() => setShowCreateForm(true)}
-                modern
+                variant="primary"
+                size="sm"
                 icon={
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
                 }
+                className="flex items-center gap-2"
               >
                 Add Project
               </Button>
@@ -320,7 +315,7 @@ const ProjectManagement: React.FC = () => {
           <Card severity="critical" className="mb-4 animate-slide-in">
             <CardBody>
               <div className="flex items-center">
-                <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-danger mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 {error}
@@ -332,7 +327,7 @@ const ProjectManagement: React.FC = () => {
           <Card severity="low" className="mb-4 animate-slide-in">
             <CardBody>
               <div className="flex items-center">
-                <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-success mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 {success}
@@ -342,18 +337,18 @@ const ProjectManagement: React.FC = () => {
         )}
 
         {/* Stats Cards */}
-        <div className="grid-responsive mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           <Card interactive className="hover:scale-105">
             <CardBody>
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-12 h-12 bg-success-light rounded-lg flex items-center justify-center">
+                  <svg className="h-6 w-6 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <dt className="text-sm font-medium text-gray-500">Total Projects</dt>
-                  <dd className="text-2xl font-bold text-gray-900">{projects.length}</dd>
+                  <dt className="text-sm font-medium text-secondary">Total Projects</dt>
+                  <dd className="text-2xl font-bold text-primary">{projects.length}</dd>
                 </div>
               </div>
             </CardBody>
@@ -362,14 +357,14 @@ const ProjectManagement: React.FC = () => {
           <Card interactive className="hover:scale-105">
             <CardBody>
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-12 h-12 bg-info-light rounded-lg flex items-center justify-center">
+                  <svg className="h-6 w-6 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <dt className="text-sm font-medium text-gray-500">Active Projects</dt>
-                  <dd className="text-2xl font-bold text-gray-900">
+                  <dt className="text-sm font-medium text-secondary">Active Projects</dt>
+                  <dd className="text-2xl font-bold text-primary">
                     {projects.filter(p => p.is_active && getProjectStatus(p) === 'Active').length}
                   </dd>
                 </div>
@@ -380,14 +375,14 @@ const ProjectManagement: React.FC = () => {
           <Card interactive className="hover:scale-105">
             <CardBody>
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-12 h-12 bg-warning-light rounded-lg flex items-center justify-center">
+                  <svg className="h-6 w-6 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <dt className="text-sm font-medium text-gray-500">Upcoming</dt>
-                  <dd className="text-2xl font-bold text-gray-900">
+                  <dt className="text-sm font-medium text-secondary">Upcoming</dt>
+                  <dd className="text-2xl font-bold text-primary">
                     {projects.filter(p => getProjectStatus(p) === 'Upcoming').length}
                   </dd>
                 </div>
@@ -398,14 +393,14 @@ const ProjectManagement: React.FC = () => {
           <Card interactive className="hover:scale-105">
             <CardBody>
               <div className="flex items-center">
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-12 h-12 bg-surface border border-default rounded-lg flex items-center justify-center">
+                  <svg className="h-6 w-6 text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <dt className="text-sm font-medium text-gray-500">Completed</dt>
-                  <dd className="text-2xl font-bold text-gray-900">
+                  <dt className="text-sm font-medium text-secondary">Completed</dt>
+                  <dd className="text-2xl font-bold text-primary">
                     {projects.filter(p => getProjectStatus(p) === 'Completed').length}
                   </dd>
                 </div>
@@ -419,7 +414,7 @@ const ProjectManagement: React.FC = () => {
           <CardBody>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-primary mb-2">
                   Search Projects
                 </label>
                 <input
@@ -427,17 +422,17 @@ const ProjectManagement: React.FC = () => {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search by name, company, or description..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  className="w-full px-4 py-2 border border-default rounded-lg bg-surface text-primary placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-primary mb-2">
                   Filter by Status
                 </label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  className="w-full px-4 py-2 border border-default rounded-lg bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200"
                 >
                   <option value="all">All Projects</option>
                   <option value="active">Active Only</option>
@@ -449,117 +444,105 @@ const ProjectManagement: React.FC = () => {
         </Card>
 
         {/* Projects Table */}
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">
+        <div className="bg-surface shadow-base overflow-hidden sm:rounded-md border border-default">
+          <div className="px-6 py-4 border-b border-default">
+            <h3 className="text-lg font-medium text-primary">
               Projects ({filteredProjects.length})
             </h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-secondary">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-primary uppercase tracking-wider">
                     Project
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-primary uppercase tracking-wider">
                     Companies
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-primary uppercase tracking-wider">
                     Timeline
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-primary uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-primary uppercase tracking-wider">
                     Created
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-primary uppercase tracking-wider min-w-[200px]">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-surface divide-y divide-border">
                 {filteredProjects.map((project) => {
                   const status = getProjectStatus(project);
                   return (
-                    <tr key={project.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap">
+                    <tr key={project.id} className="hover:bg-surface-hover transition-colors">
+                      <td className="px-4 py-4">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{project.name}</div>
+                          <div className="text-sm font-medium text-primary">{project.name}</div>
                           {project.description && (
-                            <div className="text-sm text-gray-500 max-w-xs truncate">
+                            <div className="text-sm text-secondary max-w-xs truncate">
                               {project.description}
                             </div>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                      <td className="px-4 py-4">
+                        <div className="text-sm text-primary">
                           <div><span className="font-medium">Client:</span> {project.client_company}</div>
                           <div><span className="font-medium">Contractor:</span> {project.contractor_company}</div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                      <td className="px-4 py-4">
+                        <div className="text-sm text-primary">
                           <div>Start: {formatDate(project.start_date)}</div>
                           {project.end_date && (
                             <div>End: {formatDate(project.end_date)}</div>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                           {status}
                         </span>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 py-4 text-sm text-secondary">
                         {formatDate(project.created_at)}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex items-center space-x-2">
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap gap-1">
                           <button
                             onClick={() => handleToggleProjectStatus(project.id, !project.is_active)}
-                            className={`inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded ${
+                            className={`inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded transition-colors ${
                               project.is_active 
-                                ? 'text-yellow-700 bg-yellow-100 hover:bg-yellow-200' 
-                                : 'text-green-700 bg-green-100 hover:bg-green-200'
-                            } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500`}
+                                ? 'text-warning bg-warning-light hover:opacity-80' 
+                                : 'text-success bg-success-light hover:opacity-80'
+                            } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-warning`}
                           >
                             {project.is_active ? 'Archive' : 'Activate'}
                           </button>
                           
                           <button
                             onClick={() => setEditingProject(project)}
-                            className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-info bg-info-light hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-info transition-colors"
                           >
                             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                             Edit
                           </button>
-
-                          {(() => {
-                            const canDelete = currentUser?.role === 'admin' || currentUser?.role === 'client_safety_manager';
-                            console.log('Delete button check:', {
-                              currentUser: currentUser,
-                              role: currentUser?.role,
-                              canDelete: canDelete,
-                              isAdmin: currentUser?.role === 'admin',
-                              isClientSafetyManager: currentUser?.role === 'client_safety_manager'
-                            });
-                            return canDelete;
-                          })() && (
-                            <button
-                              onClick={() => setDeletingProject(project)}
-                              className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                            >
-                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                              Delete
-                            </button>
-                          )}
+                          
+                          <button
+                            onClick={() => setDeletingProject(project)}
+                            className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-danger bg-danger-light hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-danger transition-colors"
+                          >
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -571,11 +554,11 @@ const ProjectManagement: React.FC = () => {
 
           {filteredProjects.length === 0 && (
             <div className="text-center py-8">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="mx-auto h-12 w-12 text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No projects found</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <h3 className="mt-2 text-sm font-medium text-primary">No projects found</h3>
+              <p className="mt-1 text-sm text-secondary">
                 No projects match your search criteria.
               </p>
             </div>
