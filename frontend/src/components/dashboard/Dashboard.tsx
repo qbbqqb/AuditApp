@@ -92,20 +92,39 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-surface">
-      <div className="container-padding space-y-8">
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-background)' }}>
+      <div className="space-y-10">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-6">
           <div>
-            <h1 className="text-3xl font-bold text-primary mb-2">Safety Dashboard</h1>
-            <p className="text-secondary">Real-time overview of your safety audit system</p>
+            <h1
+              style={{
+                fontSize: 'var(--font-size-4xl)',
+                fontWeight: 'var(--font-weight-extrabold)',
+                color: 'var(--color-text-primary)',
+                marginBottom: 'var(--space-2)',
+                letterSpacing: 'var(--letter-spacing-tight)',
+                lineHeight: 'var(--line-height-tight)'
+              }}
+            >
+              Safety Dashboard
+            </h1>
+            <p
+              style={{
+                fontSize: 'var(--font-size-base)',
+                color: 'var(--color-text-secondary)',
+                lineHeight: 'var(--line-height-relaxed)'
+              }}
+            >
+              Real-time overview of your safety audit system
+            </p>
           </div>
           <div className="flex gap-3">
             <Button
               onClick={loadAnalyticsData}
               disabled={loading}
               variant="secondary"
-              size="sm"
+              size="md"
               className="transition-transform hover:scale-105"
             >
               <ArrowPathIcon className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
